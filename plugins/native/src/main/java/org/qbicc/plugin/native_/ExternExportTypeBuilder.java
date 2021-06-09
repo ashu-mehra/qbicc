@@ -1,10 +1,14 @@
 package org.qbicc.plugin.native_;
 
+import java.io.IOException;
 import java.util.List;
 
 import org.jboss.logging.Logger;
 import org.qbicc.context.ClassContext;
 import org.qbicc.context.CompilationContext;
+import org.qbicc.driver.Driver;
+import org.qbicc.graph.literal.LiteralFactory;
+import org.qbicc.machine.probe.CProbe;
 import org.qbicc.object.Data;
 import org.qbicc.object.Linkage;
 import org.qbicc.object.Section;
@@ -18,12 +22,15 @@ import org.qbicc.type.annotation.ArrayAnnotationValue;
 import org.qbicc.type.annotation.StringAnnotationValue;
 import org.qbicc.type.definition.DefinedTypeDefinition;
 import org.qbicc.type.definition.FieldResolver;
+import org.qbicc.type.definition.LoadedTypeDefinition;
 import org.qbicc.type.definition.MethodResolver;
 import org.qbicc.type.definition.classfile.ClassFile;
 import org.qbicc.type.definition.element.FieldElement;
 import org.qbicc.type.definition.element.FunctionElement;
 import org.qbicc.type.definition.element.MethodElement;
 import org.qbicc.type.descriptor.ClassTypeDescriptor;
+import org.qbicc.type.descriptor.MethodDescriptor;
+import org.qbicc.type.descriptor.TypeDescriptor;
 
 /**
  * A delegating type builder which handles interactions with {@code @extern} and {@code @export} methods and fields.
@@ -137,6 +144,7 @@ public class ExternExportTypeBuilder implements DefinedTypeDefinition.Builder.De
             public MethodElement resolveMethod(final int index, final DefinedTypeDefinition enclosing) {
                 NativeInfo nativeInfo = NativeInfo.get(ctxt);
                 MethodElement origMethod = resolver.resolveMethod(index, enclosing);
+                String resolvedName = origMethod.getName();
                 // look for annotations that indicate that this method requires special handling
                 for (Annotation annotation : origMethod.getInvisibleAnnotations()) {
                     ClassTypeDescriptor desc = annotation.getDescriptor();
@@ -155,15 +163,78 @@ public class ExternExportTypeBuilder implements DefinedTypeDefinition.Builder.De
                             addExport(nativeInfo, origMethod, name);
                             // all done
                             return origMethod;
+                        } else if (desc.getClassName().equals(Native.ANN_MACRO_FUNCTION)) {
+                            resolvedName = getFunctionResolvedName(origMethod);
+                            if (resolvedName == null) {
+                                log.debugf("No symbol found for function %s marked as macro", origMethod.getName());
+                                resolvedName = origMethod.getName(); // use the original name if we fail to resolve it
+                            }
                         }
                     }
                 }
                 boolean isNative = origMethod.hasAllModifiersOf(ClassFile.ACC_NATIVE);
-                if (isNative && hasInclude) {
-                    // treat it as extern with the default name
-                    addExtern(nativeInfo, origMethod, origMethod.getName());
+
+                if (isNative) {
+                    if (hasInclude) {
+                        // treat it as extern with the default name
+                        addExtern(nativeInfo, origMethod, resolvedName);
+                    } else {
+                        // check to see there are native bindings for it
+                        DefinedTypeDefinition enclosingType = origMethod.getEnclosingType();
+                        String internalName = enclosingType.getInternalName();
+                        DefinedTypeDefinition nativeType = classCtxt.findDefinedType(internalName + "$_native");
+                        if (nativeType != null) {
+                            // found it
+                            LoadedTypeDefinition loadedNativeType = nativeType.load();
+                            boolean isStatic = origMethod.hasAllModifiersOf(ClassFile.ACC_STATIC);
+                            // bound native methods are always static, but bindings for instance methods take
+                            //   the receiver as the first argument
+                            MethodElement nativeMethod;
+                            if (isStatic) {
+                                nativeMethod = loadedNativeType.resolveMethodElementExact(origMethod.getName(), origMethod.getDescriptor());
+                            } else {
+                                // munge the descriptor
+                                MethodDescriptor origDescriptor = origMethod.getDescriptor();
+                                List<TypeDescriptor> parameterTypes = origDescriptor.getParameterTypes();
+                                nativeMethod = loadedNativeType.resolveMethodElementExact(origMethod.getName(),
+                                    MethodDescriptor.synthesize(classCtxt,
+                                        origMethod.getDescriptor().getReturnType(),
+                                        Native.copyWithPrefix(parameterTypes, enclosingType.getDescriptor(), TypeDescriptor[]::new)));
+                            }
+                            if (nativeMethod != null) {
+                                // there's a match
+                                if (nativeMethod.hasAllModifiersOf(ClassFile.ACC_STATIC)) {
+                                    nativeInfo.registerNativeBinding(origMethod, nativeMethod);
+                                } else {
+                                    classCtxt.getCompilationContext().error(nativeMethod, "Native bound methods must be declared `static`");
+                                }
+                            } else {
+                                log.debugf("No match found for native method %s in bindings class %s", origMethod, nativeType.getInternalName());
+                            }
+                        }
+                    }
                 }
                 return origMethod;
+            }
+
+            private String getFunctionResolvedName(final MethodElement origMethod) {
+                CProbe.Builder builder = CProbe.builder();
+                for (Annotation annotation : origMethod.getEnclosingType().getInvisibleAnnotations()) {
+                    ProbeUtils.processCommonAnnotation(builder, annotation);
+                }
+                builder.probeFunction(origMethod.getName(), origMethod.getSourceFileName(), 0);
+                CProbe probe = builder.build();
+                CProbe.Result result;
+                try {
+                    result = probe.run(ctxt.getAttachment(Driver.C_TOOL_CHAIN_KEY), ctxt.getAttachment(Driver.OBJ_PROVIDER_TOOL_KEY), null);
+                    if (result == null) {
+                        return null;
+                    }
+                } catch (IOException e) {
+                    return null;
+                }
+                CProbe.FunctionInfo functionInfo = result.getFunctionInfo(origMethod.getName());
+                return functionInfo.getResolvedName();
             }
 
             private void addExtern(final NativeInfo nativeInfo, final MethodElement origMethod, final String name) {
