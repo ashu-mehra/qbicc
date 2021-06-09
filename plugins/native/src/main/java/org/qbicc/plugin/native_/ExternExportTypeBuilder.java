@@ -1,8 +1,12 @@
 package org.qbicc.plugin.native_;
 
+import java.io.IOException;
 import java.util.List;
 
 import org.qbicc.context.CompilationContext;
+import org.qbicc.driver.Driver;
+import org.qbicc.graph.literal.LiteralFactory;
+import org.qbicc.machine.probe.CProbe;
 import org.qbicc.object.Data;
 import org.qbicc.object.Linkage;
 import org.qbicc.object.Section;
@@ -140,6 +144,7 @@ public class ExternExportTypeBuilder implements DefinedTypeDefinition.Builder.De
             public MethodElement resolveMethod(final int index, final DefinedTypeDefinition enclosing) {
                 NativeInfo nativeInfo = NativeInfo.get(ctxt);
                 MethodElement origMethod = resolver.resolveMethod(index, enclosing);
+                String resolvedName = origMethod.getName();
                 // look for annotations that indicate that this method requires special handling
                 for (Annotation annotation : origMethod.getInvisibleAnnotations()) {
                     ClassTypeDescriptor desc = annotation.getDescriptor();
@@ -158,6 +163,12 @@ public class ExternExportTypeBuilder implements DefinedTypeDefinition.Builder.De
                             addExport(nativeInfo, origMethod, name);
                             // all done
                             return origMethod;
+                        } else if (desc.getClassName().equals(Native.ANN_MACRO_FUNCTION)) {
+                            resolvedName = getFunctionResolvedName(origMethod);
+                            if (resolvedName == null) {
+                                log.debugf("No symbol found for function %s marked as macro", origMethod.getName());
+                                resolvedName = origMethod.getName(); // use the original name if we fail to resolve it
+                            }
                         }
                     }
                 }
@@ -165,7 +176,7 @@ public class ExternExportTypeBuilder implements DefinedTypeDefinition.Builder.De
                 if (isNative) {
                     if (hasInclude) {
                         // treat it as extern with the default name
-                        addExtern(nativeInfo, origMethod, origMethod.getName());
+                        addExtern(nativeInfo, origMethod, resolvedName);
                     } else {
                         // check to see there are native bindings for it
                         DefinedTypeDefinition enclosingType = origMethod.getEnclosingType();
@@ -203,6 +214,26 @@ public class ExternExportTypeBuilder implements DefinedTypeDefinition.Builder.De
                     }
                 }
                 return origMethod;
+            }
+
+            private String getFunctionResolvedName(final MethodElement origMethod) {
+                CProbe.Builder builder = CProbe.builder();
+                for (Annotation annotation : origMethod.getEnclosingType().getInvisibleAnnotations()) {
+                    ProbeUtils.processCommonAnnotation(builder, annotation);
+                }
+                builder.probeFunction(origMethod.getName(), origMethod.getSourceFileName(), 0);
+                CProbe probe = builder.build();
+                CProbe.Result result;
+                try {
+                    result = probe.run(ctxt.getAttachment(Driver.C_TOOL_CHAIN_KEY), ctxt.getAttachment(Driver.OBJ_PROVIDER_TOOL_KEY), null);
+                    if (result == null) {
+                        return null;
+                    }
+                } catch (IOException e) {
+                    return null;
+                }
+                CProbe.FunctionInfo functionInfo = result.getFunctionInfo(origMethod.getName());
+                return functionInfo.getResolvedName();
             }
 
             private void addExtern(final NativeInfo nativeInfo, final MethodElement origMethod, final String name) {

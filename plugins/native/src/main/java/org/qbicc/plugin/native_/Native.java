@@ -30,6 +30,7 @@ final class Native {
     static final String ANN_CONST = className(c_const.class);
     static final String ANN_RESTRICT = className(restrict.class);
     static final String ANN_ARRAY_SIZE = className(array_size.class);
+    static final String ANN_MACRO_FUNCTION = className(macro_function.class);
 
     static final String OBJECT_INT_NAME = intName(object.class);
     static final String WORD_INT_NAME = intName(word.class);
