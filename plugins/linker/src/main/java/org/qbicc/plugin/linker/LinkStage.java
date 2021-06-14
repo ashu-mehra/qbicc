@@ -6,6 +6,7 @@ import java.util.function.Consumer;
 import org.qbicc.context.CompilationContext;
 import org.qbicc.driver.Driver;
 import org.qbicc.machine.tool.CToolChain;
+import org.qbicc.machine.tool.IncompatibleOptionsException;
 import org.qbicc.machine.tool.LinkerInvoker;
 import org.qbicc.machine.tool.ToolMessageHandler;
 
@@ -31,7 +32,11 @@ public class LinkStage implements Consumer<CompilationContext> {
         linkerInvoker.addLibraries(linker.getLibraries());
         linkerInvoker.setOutputPath(context.getOutputDirectory().resolve("a.out"));
         linkerInvoker.setMessageHandler(ToolMessageHandler.reporting(context));
-        linkerInvoker.setIsPie(isPie);
+        try {
+            linkerInvoker.setIsPie(isPie);
+        } catch (IncompatibleOptionsException e) {
+            context.error("Incompatible options provided to Linker: %s", e.toString());
+        }
         try {
             linkerInvoker.invoke();
         } catch (IOException e) {

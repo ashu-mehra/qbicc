@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import io.smallrye.common.constraint.Assert;
+import org.qbicc.machine.tool.IncompatibleOptionsException;
 
 /**
  *
@@ -15,6 +16,7 @@ final class ClangLinkerInvokerImpl extends AbstractClangInvoker implements Clang
     private final List<Path> objectFiles = new ArrayList<>(4);
     private Path outputPath = TMP.resolve("qbicc-output-image");
     private boolean isPie = false;
+    private boolean isPartial = false;
 
     ClangLinkerInvokerImpl(final ClangToolChainImpl tool) {
         super(tool);
@@ -64,27 +66,47 @@ final class ClangLinkerInvokerImpl extends AbstractClangInvoker implements Clang
         return outputPath;
     }
 
-    public void setIsPie(boolean isPie) {
+    public void setIsPie(boolean isPie) throws IncompatibleOptionsException {
+        if (isPartial) {
+            throw new IncompatibleOptionsException("cannot use PIE with partial linking");
+        }
         this.isPie = isPie;
+        if (isPie) {
+            this.isPartial = false; // cannot use "-pie" with partial linking
+        }
     }
 
     public boolean getIsPie() {
         return isPie;
     }
 
-    void addArguments(final List<String> cmd) {
+    public void setIsPartialLinking(boolean isPartial) throws IncompatibleOptionsException {
         if (isPie) {
-            cmd.add("-pie");
-        } else {
-            cmd.add("-no-pie");
+            throw new IncompatibleOptionsException("cannot use partial linking with PIE");
         }
-        cmd.add("-pthread");
+        this.isPartial = isPartial;
+    }
 
-        for (Path libraryPath : libraryPaths) {
-            cmd.add("-L" + libraryPath.toString());
-        }
-        for (String library : libraries) {
-            cmd.add("-l" + library);
+    public boolean getIsPartialLinking() { return this.isPartial; }
+
+    void addArguments(final List<String> cmd) {
+        if (isPartial) {
+            cmd.add("-Wl,-r");
+            cmd.add("-nostdlib");
+        } else {
+            if (isPie) {
+                cmd.add("-pie");
+            } else {
+                cmd.add("-no-pie");
+            }
+            cmd.add("-pthread");
+
+            for (Path libraryPath : libraryPaths) {
+                cmd.add("-L" + libraryPath.toString());
+            }
+            for (String library : libraries) {
+                cmd.add("-l" + library);
+            }
         }
         for (Path objectFile : objectFiles) {
             cmd.add(objectFile.toString());

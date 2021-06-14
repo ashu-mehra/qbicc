@@ -33,6 +33,12 @@ public final class Linker {
         }
     }
 
+    public void clearObjectSet() {
+        synchronized (objectPaths) {
+                this.objectPaths.clear();
+        }
+    }
+
     public List<Path> getObjectFilePaths() {
         synchronized (objectPaths) {
             return List.copyOf(objectPaths);

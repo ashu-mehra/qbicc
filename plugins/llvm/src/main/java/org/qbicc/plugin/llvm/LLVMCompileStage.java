@@ -2,7 +2,9 @@ package org.qbicc.plugin.llvm;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import java.util.function.Consumer;
 
 import org.qbicc.context.CompilationContext;
@@ -10,6 +12,8 @@ import org.qbicc.context.Location;
 import org.qbicc.driver.Driver;
 import org.qbicc.machine.tool.CCompilerInvoker;
 import org.qbicc.machine.tool.CToolChain;
+import org.qbicc.machine.tool.IncompatibleOptionsException;
+import org.qbicc.machine.tool.LinkerInvoker;
 import org.qbicc.machine.tool.ToolMessageHandler;
 import org.qbicc.machine.tool.process.InputSource;
 import org.qbicc.machine.tool.process.OutputDestination;
@@ -46,7 +50,7 @@ public class LLVMCompileStage implements Consumer<CompilationContext> {
         }
 
         Linker linker = Linker.get(context);
-
+        final List<Path> objectFilePaths = new ArrayList<>();
         Iterator<Path> iterator = llvmState.getModulePaths().iterator();
         context.runParallelTask(ctxt -> {
             LlcInvoker llcInvoker = llvmToolChain.newLlcInvoker();
@@ -116,11 +120,34 @@ public class LLVMCompileStage implements Consumer<CompilationContext> {
                         ctxt.error("Compiler invocation has failed for %s: %s", modulePath, e.toString());
                         continue;
                     }
-                    linker.addObjectFilePath(objectPath);
+                    synchronized (objectFilePaths) {
+                        objectFilePaths.add(objectPath);
+                    }
                 } else {
                     ctxt.warning("Ignoring unknown module file name \"%s\"", modulePath);
                 }
             }
         });
+
+        String qbiccApp = "qbicc-app";
+        Path objectPath = context.getOutputDirectory().resolve(qbiccApp + "." + cToolChain.getPlatform().getObjectType().objectSuffix());
+
+        LinkerInvoker linkerInvoker = cToolChain.newLinkerInvoker();
+        linkerInvoker.addObjectFiles(objectFilePaths);
+        linkerInvoker.setOutputPath(objectPath);
+        linkerInvoker.setMessageHandler(ToolMessageHandler.reporting(context));
+        try {
+            linkerInvoker.setIsPartialLinking(true);
+        } catch (IncompatibleOptionsException e) {
+            context.error("Incompatible options provided to Linker: %s", e.toString());
+        }
+        try {
+            linkerInvoker.invoke();
+        } catch (IOException e) {
+            context.error("Linker invocation failed: %s", e.toString());
+        }
+
+        linker.clearObjectSet();
+        linker.addObjectFilePath(objectPath);
     }
 }

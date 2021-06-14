@@ -46,7 +46,11 @@ public interface LinkerInvoker extends MessagingToolInvoker {
 
     Path getOutputPath();
 
-    void setIsPie(boolean isPie);
+    void setIsPie(boolean isPie) throws IncompatibleOptionsException;
 
     boolean getIsPie();
+
+    void setIsPartialLinking(boolean isPartial) throws IncompatibleOptionsException;
+
+    boolean getIsPartialLinking();
 }
