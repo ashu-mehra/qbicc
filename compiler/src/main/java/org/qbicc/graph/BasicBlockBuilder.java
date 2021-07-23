@@ -296,6 +296,8 @@ public interface BasicBlockBuilder extends Locatable {
 
     ValueHandle referenceHandle(Value reference);
 
+    ValueHandle nativeArrayHandle(Value array);
+
     ValueHandle instanceFieldOf(ValueHandle instance, FieldElement field);
 
     ValueHandle instanceFieldOf(ValueHandle instance, TypeDescriptor owner, String name, TypeDescriptor type);
