@@ -7,6 +7,7 @@ import org.qbicc.object.Data;
 import org.qbicc.object.Section;
 import org.qbicc.type.TypeSystem;
 
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 
@@ -35,7 +36,7 @@ public class OffsetBasedStringPool implements StringPool {
         synchronized (this) {
             id = stringToIdMap.computeIfAbsent(str, k -> {
                 StringId newId = new OffsetBasedStringId(nextOffset);
-                int numBytes = str.getBytes().length + 1; // +1 for null character
+                int numBytes = str.getBytes(StandardCharsets.UTF_16).length + 1; // +1 for null character
                 nextOffset += numBytes;
                 return newId;
             });
@@ -61,11 +62,11 @@ public class OffsetBasedStringPool implements StringPool {
         pool[0] = 0;
         int cursor = 1;
         for (String str: stringToIdMap.keySet()) {
-            byte[] chars = str.getBytes();
+            byte[] chars = str.getBytes(StandardCharsets.UTF_16);
             assert cursor == ((OffsetBasedStringId) stringToIdMap.get(str)).offset;
             System.arraycopy(chars, 0, pool, cursor, chars.length);
             cursor += chars.length;
-            pool[cursor] = 0;
+            pool[cursor] = 0; // append null at the end of string
             cursor += 1;
         }
 
