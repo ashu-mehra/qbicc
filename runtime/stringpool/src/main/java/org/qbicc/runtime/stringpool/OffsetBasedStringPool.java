@@ -5,6 +5,7 @@ import org.qbicc.runtime.stdc.Stdint;
 
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -12,7 +13,7 @@ public class OffsetBasedStringPool {
     @CNative.extern
     static Stdint.uint8_t[] qbicc_string_pool;
 
-    private static Map<StringId, String> stringMap = new ConcurrentHashMap<>();
+    private static Map<StringId, String> stringMap = new HashMap<>(); // should use ConcurrentHashMap
 
     public static String getString(StringId stringId) {
         if (stringMap.containsKey(stringId)) {
