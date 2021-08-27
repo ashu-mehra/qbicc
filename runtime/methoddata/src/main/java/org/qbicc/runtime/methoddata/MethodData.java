@@ -22,6 +22,22 @@ public final class MethodData {
     @extern
     public static method_info[] qbicc_method_info_table;
 
+    public static int getFileNameIndex(int minfoIndex) {
+        return qbicc_method_info_table[minfoIndex].fileNameIndex.intValue();
+    }
+
+    public static int getClassNameIndex(int minfoIndex) {
+        return qbicc_method_info_table[minfoIndex].classNameIndex.intValue();
+    }
+
+    public static int getMethodNameIndex(int minfoIndex) {
+        return qbicc_method_info_table[minfoIndex].methodNameIndex.intValue();
+    }
+
+    public static int getMethodDescIndex(int minfoIndex) {
+        return qbicc_method_info_table[minfoIndex].methodDescIndex.intValue();
+    }
+
     public static method_info getMethodInfo(int minfoIndex) {
         return qbicc_method_info_table[minfoIndex];
     }
@@ -43,6 +59,15 @@ public final class MethodData {
 
     @extern
     public static source_code_info[] qbicc_source_code_info_table;
+
+    public static int getMethodInfoIndex(int scIndex) {
+        return qbicc_source_code_info_table[scIndex].minfo_index.intValue();
+    }
+
+    public static int getLineNumber(int scIndex) {
+        return qbicc_source_code_info_table[scIndex].line_number.intValue();
+    }
+
 
     public static source_code_info getSourceCodeInfo(int scIndex) {
         return qbicc_source_code_info_table[scIndex];

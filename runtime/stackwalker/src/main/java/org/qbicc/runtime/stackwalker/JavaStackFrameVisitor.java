@@ -14,6 +14,16 @@ public class JavaStackFrameVisitor implements StackFrameVisitor {
 
     private StackTraceElement buildStackTraceElement(int instructionIndex) {
         int scIndex = MethodData.getSourceCodeInfoIndex(instructionIndex).intValue();
+        int lineNumber = MethodData.getLineNumber(scIndex);
+        int minfoIndex = MethodData.getMethodInfoIndex(scIndex);
+        String className = StringPoolAccessor.getString(MethodData.getClassNameIndex(minfoIndex));
+        String methodName = StringPoolAccessor.getString(MethodData.getMethodNameIndex(minfoIndex));
+        String fileName = StringPoolAccessor.getString(MethodData.getFileNameIndex(minfoIndex));
+        return new StackTraceElement(className, methodName, fileName, lineNumber);
+    }
+
+/*    private StackTraceElement buildStackTraceElement(int instructionIndex) {
+        int scIndex = MethodData.getSourceCodeInfoIndex(instructionIndex).intValue();
         MethodData.source_code_info scInfo = MethodData.getSourceCodeInfo(scIndex);
         MethodData.method_info minfo = MethodData.getMethodInfo(scInfo.minfo_index.intValue());
         int lineNumber = scInfo.line_number.intValue();
@@ -21,7 +31,14 @@ public class JavaStackFrameVisitor implements StackFrameVisitor {
         String methodName = StringPoolAccessor.getString(minfo.methodNameIndex);
         String fileName = StringPoolAccessor.getString(minfo.fileNameIndex);
         return new StackTraceElement(className, methodName, fileName, lineNumber);
-    }
+    }*/
+
+    /*
+    private int buildStackTraceElement(int index) {
+        // returning a struct from a method fails to compile with llvm when statepoint intrincis are used
+        MethodData.source_code_info scInfo = MethodData.getSourceCodeInfo(10);
+        return 0;
+    }*/
 
     private int findInstructionInMethodData(long ip) {
         // do a binary search in instruction table
