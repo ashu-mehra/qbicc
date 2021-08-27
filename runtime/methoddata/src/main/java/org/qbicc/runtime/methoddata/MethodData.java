@@ -51,12 +51,15 @@ public final class MethodData {
     @extern
     public static uint64_t[] qbicc_instruction_list;
 
+    @extern
+    public static int qbicc_instruction_list_size;
+
     public static uint64_t getInstructionAddress(int index) {
         return qbicc_instruction_list[index];
     }
 
     public static int getInstructionListSize() {
-        return qbicc_instruction_list.length;
+        return qbicc_instruction_list_size;
     }
 
     @extern
