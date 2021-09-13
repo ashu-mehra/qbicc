@@ -23,6 +23,10 @@ public class UnwindHelper {
             personalityMethod = null;
             ctxt.error("Required class \"%s\" is not found on boot classpath", unwindClass);
         }
+        DefinedTypeDefinition libUnwind = classContext.findDefinedType("org/qbicc/runtime/unwind/LibUnwind");
+        if (libUnwind != null) {
+            libUnwind.load();
+        }
     }
     public static UnwindHelper get(CompilationContext ctxt) {
         UnwindHelper helper = ctxt.getAttachment(KEY);
