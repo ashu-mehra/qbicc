@@ -8,8 +8,11 @@ import org.qbicc.object.Section;
 import org.qbicc.type.TypeSystem;
 
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.stream.Stream;
 
 /**
  * This StringPool implementation stores strings in a single array with each string separated by a null character.
@@ -36,8 +39,10 @@ public class OffsetBasedStringPool implements StringPool {
         synchronized (this) {
             id = stringToIdMap.computeIfAbsent(str, k -> {
                 StringId newId = new OffsetBasedStringId(nextOffset);
-                int numBytes = str.getBytes(StandardCharsets.UTF_16).length + 1; // +1 for null character
-                nextOffset += numBytes;
+                int numChars = str.toCharArray().length + 1;
+                nextOffset += numChars;
+                //int numBytes = str.getBytes(StandardCharsets.UTF_16).length + 1; // +1 for null character
+                //nextOffset += numBytes;
                 return newId;
             });
         }
@@ -58,21 +63,28 @@ public class OffsetBasedStringPool implements StringPool {
 
 
     public Data emit(CompilationContext context) {
-        byte[] pool = new byte[nextOffset];
+        //byte[] pool = new byte[nextOffset];
+        char[] pool = new char[nextOffset];
         pool[0] = 0;
         int cursor = 1;
         for (String str: stringToIdMap.keySet()) {
-            byte[] chars = str.getBytes(StandardCharsets.UTF_16);
+            //byte[] chars = str.getBytes(StandardCharsets.UTF_16);
+            char[] chars = str.toCharArray();
             assert cursor == ((OffsetBasedStringId) stringToIdMap.get(str)).offset;
             System.arraycopy(chars, 0, pool, cursor, chars.length);
             cursor += chars.length;
-            pool[cursor] = 0; // append null at the end of string
+            pool[cursor] = '\0'; // append null at the end of string
             cursor += 1;
         }
 
         TypeSystem ts = context.getTypeSystem();
         LiteralFactory lf = context.getLiteralFactory();
-        Literal literal = lf.literalOf(ts.getArrayType(ts.getUnsignedInteger8Type(), pool.length), pool);
+        //Literal literal = lf.literalOf(ts.getArrayType(ts.getUnsignedInteger8Type(), pool.length), pool);
+        ArrayList<Literal> charLiterals = new ArrayList<>();
+        for (char ch: pool) {
+            charLiterals.add(lf.literalOf(ch));
+        }
+        Literal literal = lf.literalOf(ts.getArrayType(ts.getUnsignedInteger16Type(), pool.length), charLiterals);
         Section section = context.getImplicitSection(context.getDefaultTypeDefinition());
         return section.addData(null, "qbicc_string_pool", literal);
     }

@@ -86,12 +86,14 @@ public final class CoreIntrinsics {
         registerJavaLangStringIntrinsics(ctxt);
         registerJavaLangStringUTF16Intrinsics(ctxt);
         registerJavaLangSystemIntrinsics(ctxt);
+        registerJavaLangStackTraceElementInstrinsics(ctxt);
         registerJavaLangThreadIntrinsics(ctxt);
         registerJavaLangThrowableIntrinsics(ctxt);
         registerJavaLangObjectIntrinsics(ctxt);
         registerJavaLangNumberIntrinsics(ctxt);
         registerJavaLangFloatDoubleMathIntrinsics(ctxt);
         registerJavaLangRuntimeIntrinsics(ctxt);
+        registerOrgQbiccJavaStackFrameVisitorIntrinsics(ctxt);
         registerOrgQbiccObjectModelIntrinsics(ctxt);
         registerOrgQbiccRuntimeMainIntrinsics(ctxt);
         registerOrgQbiccRuntimeValuesIntrinsics(ctxt);
@@ -493,6 +495,7 @@ public final class CoreIntrinsics {
         Intrinsics intrinsics = Intrinsics.get(ctxt);
         ClassContext classContext = ctxt.getBootstrapClassContext();
 
+        ClassTypeDescriptor jloDesc = ClassTypeDescriptor.synthesize(classContext, "java/lang/Object");
         ClassTypeDescriptor jltDesc = ClassTypeDescriptor.synthesize(classContext, "java/lang/Throwable");
         ClassTypeDescriptor steDesc = ClassTypeDescriptor.synthesize(classContext, "java/lang/StackTraceElement");
         ArrayTypeDescriptor steArrayDesc = ArrayTypeDescriptor.of(classContext, steDesc);
@@ -500,29 +503,83 @@ public final class CoreIntrinsics {
         ClassTypeDescriptor stackWalkerDesc = ClassTypeDescriptor.synthesize(classContext, "org/qbicc/runtime/stackwalker/StackWalker");
         ClassTypeDescriptor stackFrameVisitorDesc = ClassTypeDescriptor.synthesize(classContext, "org/qbicc/runtime/stackwalker/StackFrameVisitor");
         ClassTypeDescriptor javaStackFrameVisitorDesc = ClassTypeDescriptor.synthesize(classContext, "org/qbicc/runtime/stackwalker/JavaStackFrameVisitor");
-        MethodDescriptor walkStackMethodDesc = MethodDescriptor.synthesize(classContext, BaseTypeDescriptor.Z, List.of(stackFrameVisitorDesc));
-        MethodDescriptor getStackTraceMethodDesc = MethodDescriptor.synthesize(classContext, steArrayDesc, List.of());
-        Literal zero = ctxt.getLiteralFactory().literalOf(ctxt.getTypeSystem().getSignedInteger32Type(), 0);
-
-        // todo: temporary, until we have a stack walker
+        MethodDescriptor sfVisitorToBoolDesc = MethodDescriptor.synthesize(classContext, BaseTypeDescriptor.Z, List.of(stackFrameVisitorDesc));
+        MethodDescriptor voidToObjectDesc = MethodDescriptor.synthesize(classContext, jloDesc, List.of());
+        MethodDescriptor voidToIntDesc = MethodDescriptor.synthesize(classContext, BaseTypeDescriptor.I, List.of());
 
         InstanceIntrinsic fillInStackTrace = (builder, instance, target, arguments) -> {
             Value visitor = builder.new_(javaStackFrameVisitorDesc);
             builder.call(builder.getFirstBuilder().constructorOf(visitor, javaStackFrameVisitorDesc, MethodDescriptor.VOID_METHOD_DESCRIPTOR), List.of());
-            builder.call(builder.staticMethod(stackWalkerDesc, "walkStack", walkStackMethodDesc), List.of(visitor));
-            Value stackTrace = builder.call(builder.virtualMethodOf(visitor, javaStackFrameVisitorDesc, "getStackTrace", getStackTraceMethodDesc), List.of());
-            ValueHandle handle = builder.instanceFieldOf(builder.referenceHandle(instance), jltDesc, "stackTrace", steArrayDesc);
-            builder.store(handle, stackTrace, handle.getDetectedMode());
+            builder.call(builder.staticMethod(stackWalkerDesc, "walkStack", sfVisitorToBoolDesc), List.of(visitor));
+
+            // set Throwable#backtrace and Throwable#depth fields using JavaStackFrameVisitor#getBacktrace() and JavaStackFrameVisitor#getDepth()
+            DefinedTypeDefinition jlt = classContext.findDefinedType("java/lang/Throwable");
+            LoadedTypeDefinition jltVal = jlt.load();
+            FieldElement backtraceField = jltVal.findField("backtrace");
+            FieldElement depthField = jltVal.findField("depth");
+            Value backtraceValue = builder.call(builder.virtualMethodOf(visitor, javaStackFrameVisitorDesc, "getBacktrace", voidToObjectDesc), List.of());
+            Value depthValue = builder.call(builder.virtualMethodOf(visitor, javaStackFrameVisitorDesc, "getDepth", voidToIntDesc), List.of());
+            builder.store(builder.instanceFieldOf(builder.referenceHandle(instance), backtraceField), backtraceValue, MemoryAtomicityMode.NONE);
+            builder.store(builder.instanceFieldOf(builder.referenceHandle(instance), depthField), depthValue, MemoryAtomicityMode.NONE);
             return instance;
         };
 
-        InstanceIntrinsic getOurStackTrace = (builder, instance, target, arguments) -> {
-            ValueHandle handle = builder.instanceFieldOf(builder.referenceHandle(instance), jltDesc, "stackTrace", steArrayDesc);
-            return builder.load(handle, handle.getDetectedMode());
+        intrinsics.registerIntrinsic(jltDesc, "fillInStackTrace", MethodDescriptor.synthesize(classContext, jltDesc, List.of()), fillInStackTrace);
+    }
+
+    public static void registerJavaLangStackTraceElementInstrinsics(CompilationContext ctxt) {
+        Intrinsics intrinsics = Intrinsics.get(ctxt);
+        ClassContext classContext = ctxt.getBootstrapClassContext();
+
+        ClassTypeDescriptor jsfvDesc = ClassTypeDescriptor.synthesize(classContext, "org/qbicc/runtime/stackwalker/JavaStackFrameVisitor");
+        ClassTypeDescriptor steDesc = ClassTypeDescriptor.synthesize(classContext, "java/lang/StackTraceElement");
+        ClassTypeDescriptor jloDesc = ClassTypeDescriptor.synthesize(classContext, "java/lang/Object");
+        ClassTypeDescriptor jltDesc = ClassTypeDescriptor.synthesize(classContext, "java/lang/Throwable");
+        ArrayTypeDescriptor steArrayDesc = ArrayTypeDescriptor.of(classContext, steDesc);
+        MethodDescriptor steArrayObjectIntToVoidDesc = MethodDescriptor.synthesize(classContext, BaseTypeDescriptor.V, List.of(steArrayDesc, jloDesc, BaseTypeDescriptor.I));
+        MethodDescriptor steArrayThrowableToVoidDesc = MethodDescriptor.synthesize(classContext, BaseTypeDescriptor.V, List.of(steArrayDesc, jltDesc));
+
+        StaticIntrinsic initStackTraceElements = (builder, target, arguments) -> {
+            DefinedTypeDefinition jlt = classContext.findDefinedType("java/lang/Throwable");
+            LoadedTypeDefinition jltVal = jlt.load();
+            FieldElement backtraceField = jltVal.findField("backtrace");
+            FieldElement depthField = jltVal.findField("depth");
+            Value backtraceValue = builder.load(builder.instanceFieldOf(builder.referenceHandle(arguments.get(1)), backtraceField), MemoryAtomicityMode.NONE);
+            Value depthValue = builder.load(builder.instanceFieldOf(builder.referenceHandle(arguments.get(1)), depthField), MemoryAtomicityMode.NONE);
+
+            return builder.getFirstBuilder().call(builder.staticMethod(jsfvDesc, "fillStackTraceElements", steArrayObjectIntToVoidDesc), List.of(arguments.get(0), backtraceValue, depthValue));
         };
 
-        intrinsics.registerIntrinsic(jltDesc, "fillInStackTrace", MethodDescriptor.synthesize(classContext, jltDesc, List.of()), fillInStackTrace);
-        intrinsics.registerIntrinsic(jltDesc, "getOurStackTrace", MethodDescriptor.synthesize(classContext, steArrayDesc, List.of()), getOurStackTrace);
+        intrinsics.registerIntrinsic(steDesc, "initStackTraceElements", steArrayThrowableToVoidDesc, initStackTraceElements);
+    }
+
+    public static void registerOrgQbiccJavaStackFrameVisitorIntrinsics(CompilationContext ctxt) {
+        Intrinsics intrinsics = Intrinsics.get(ctxt);
+        ClassContext classContext = ctxt.getBootstrapClassContext();
+
+        ClassTypeDescriptor jsfvDesc = ClassTypeDescriptor.synthesize(classContext, "org/qbicc/runtime/stackwalker/JavaStackFrameVisitor");
+        ClassTypeDescriptor jlsDesc = ClassTypeDescriptor.synthesize(classContext, "java/lang/String");
+        ClassTypeDescriptor jlsteDesc = ClassTypeDescriptor.synthesize(classContext, "java/lang/StackTraceElement");
+        MethodDescriptor fillSteDesc = MethodDescriptor.synthesize(classContext, BaseTypeDescriptor.V, List.of(jlsteDesc, jlsDesc, jlsDesc, jlsDesc, BaseTypeDescriptor.I));
+
+        StaticIntrinsic fillStackTraceElement = (builder, target, arguments) -> {
+            DefinedTypeDefinition jls = classContext.findDefinedType("java/lang/StackTraceElement");
+            LoadedTypeDefinition jlsVal = jls.load();
+            FieldElement declaringClass = jlsVal.findField("declaringClass");
+            FieldElement methodName = jlsVal.findField("methodName");
+            FieldElement fileName = jlsVal.findField("fileName");
+            FieldElement lineNumber = jlsVal.findField("lineNumber");
+
+            ValueHandle steRefHandle = builder.referenceHandle(arguments.get(0));
+
+            builder.store(builder.instanceFieldOf(steRefHandle, declaringClass), arguments.get(1), MemoryAtomicityMode.NONE);
+            builder.store(builder.instanceFieldOf(steRefHandle, methodName), arguments.get(2), MemoryAtomicityMode.NONE);
+            builder.store(builder.instanceFieldOf(steRefHandle, fileName), arguments.get(3), MemoryAtomicityMode.NONE);
+            builder.store(builder.instanceFieldOf(steRefHandle, lineNumber), arguments.get(4), MemoryAtomicityMode.NONE);
+            return ctxt.getLiteralFactory().zeroInitializerLiteralOfType(ctxt.getTypeSystem().getVoidType()); // void literal
+        };
+
+        intrinsics.registerIntrinsic(jsfvDesc, "fillStackTraceElement", fillSteDesc, fillStackTraceElement);
     }
 
     public static void registerJavaLangNumberIntrinsics(CompilationContext ctxt) {

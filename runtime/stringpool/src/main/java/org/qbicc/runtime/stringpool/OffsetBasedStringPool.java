@@ -5,13 +5,15 @@ import org.qbicc.runtime.stdc.Stdint;
 
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class OffsetBasedStringPool {
     @CNative.extern
-    static Stdint.uint8_t[] qbicc_string_pool;
+    //static Stdint.uint8_t[] qbicc_string_pool;
+    static Stdint.uint16_t[] qbicc_string_pool;
 
     private static Map<StringId, String> stringMap = new HashMap<>(); // should use ConcurrentHashMap
 
@@ -26,15 +28,31 @@ public class OffsetBasedStringPool {
         } else {
             OffsetBasedStringId id = (OffsetBasedStringId)stringId;
             int offset = id.getOffset();
+            char ch;
+            char[] contents = new char[1024];
+            int current = 0;
+            while ((ch = qbicc_string_pool[offset + current].charValue()) != '\0') {
+                if (current == contents.length) {
+                    char[] old = contents;
+                    contents = new char[current + 1024];
+                    System.arraycopy(old, 0, contents, 0, old.length);
+                }
+                contents[current] = ch;
+                current += 1;
+            }
+            String str = new String(contents, 0, current);
+            stringMap.put(stringId, str);
+            return str;
 
-            byte ch;
+/*            byte ch;
             ByteArrayOutputStream stream = new ByteArrayOutputStream();
 
             while ((ch = qbicc_string_pool[offset].byteValue()) != 0) {
                 stream.write(ch);
                 offset += 1;
-            }
-            return stringMap.put(stringId, new String(stream.toByteArray(), StandardCharsets.UTF_16));
+            }*/
+
+            //return stringMap.put(stringId, new String(stream.toByteArray(), StandardCharsets.UTF_16));
         }
     }
 

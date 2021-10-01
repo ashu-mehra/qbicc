@@ -319,6 +319,7 @@ public class MethodDataEmitter implements Consumer<CompilationContext> {
             if (equals(other)) {
                 return 0;
             }
+
             int diff = Integer.compareUnsigned(objectFileIndex, other.objectFileIndex);
             if (diff == 0) {
                 diff = Integer.compareUnsigned(functionIndex, other.functionIndex);
