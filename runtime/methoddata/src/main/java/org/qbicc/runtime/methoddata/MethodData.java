@@ -94,6 +94,20 @@ public final class MethodData {
         return qbicc_source_code_index_list[index];
     }
 
+    @extern
+    public static uint32_t_ptr table;
+
+/*    @export
+    public static int testArray(int index, int value) {
+        return table.get(index).intValue();
+    }*/
+
+    @export
+    public static int testArray(int index, int value) {
+        uint32_t[] tableArray = table.asArray();
+        return tableArray[index].intValue();
+    }
+
 /*    @extern
     public static native int putchar(int arg);
 
