@@ -97,6 +97,7 @@ import org.qbicc.plugin.opt.SimpleOptBasicBlockBuilder;
 import org.qbicc.plugin.reachability.RTAInfo;
 import org.qbicc.plugin.reachability.ReachabilityBlockBuilder;
 import org.qbicc.plugin.serialization.ClassObjectSerializer;
+import org.qbicc.plugin.serialization.MethodDataStringsSerializer;
 import org.qbicc.plugin.serialization.ObjectLiteralSerializingVisitor;
 import org.qbicc.plugin.stringpool.StringPoolEmitter;
 import org.qbicc.plugin.threadlocal.ThreadLocalBasicBlockBuilder;
@@ -429,6 +430,7 @@ public class Main implements Callable<DiagnosticContext> {
                                     builder.addCopyFactory(Phase.LOWER, PhiOptimizerVisitor::new);
                                 }
                                 builder.addCopyFactory(Phase.LOWER, ObjectLiteralSerializingVisitor::new);
+                                //builder.addCopyFactory(Phase.LOWER, MethodDataStringsSerializer::new);
 
                                 builder.addBuilderFactory(Phase.LOWER, BuilderStage.TRANSFORM, ThrowLoweringBasicBlockBuilder::new);
                                 builder.addBuilderFactory(Phase.LOWER, BuilderStage.TRANSFORM, DevirtualizingBasicBlockBuilder::new);
@@ -454,6 +456,8 @@ public class Main implements Callable<DiagnosticContext> {
                                     builder.addBuilderFactory(Phase.LOWER, BuilderStage.TRANSFORM, LocalMemoryTrackingBasicBlockBuilder::new);
                                 }
                                 builder.addBuilderFactory(Phase.LOWER, BuilderStage.INTEGRITY, LowerVerificationBasicBlockBuilder::new);
+                                // MethodDataStringsSerializer should be the last BBB in the list
+                                builder.addBuilderFactory(Phase.LOWER, BuilderStage.TRANSFORM, MethodDataStringsSerializer::new);
 
                                 builder.addPreHook(Phase.GENERATE, new SupersDisplayEmitter());
                                 builder.addPreHook(Phase.GENERATE, new DispatchTableEmitter());
