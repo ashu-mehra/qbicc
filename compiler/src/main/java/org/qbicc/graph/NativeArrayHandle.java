@@ -21,6 +21,11 @@ public class NativeArrayHandle extends AbstractValueHandle {
     }
 
     @Override
+    String getNodeName() {
+        return "NativeArrayHandle";
+    }
+
+    @Override
     public boolean equals(Object other) {
         return other instanceof NativeArrayHandle && equals((NativeArrayHandle)other);
     }
@@ -37,6 +42,16 @@ public class NativeArrayHandle extends AbstractValueHandle {
     @Override
     public ArrayType getValueType() {
         return (ArrayType) value.getType();
+    }
+
+    @Override
+    public boolean isConstantLocation() {
+        return false;
+    }
+
+    @Override
+    public boolean isValueConstant() {
+        return false;
     }
 
     public Value getArrayValue() {

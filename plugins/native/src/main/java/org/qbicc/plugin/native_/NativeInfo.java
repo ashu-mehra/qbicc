@@ -107,7 +107,7 @@ final class NativeInfo {
                 resolved = ref.get();
                 if (resolved == null) {
                     LoadedTypeDefinition validated = definedType.load();
-                    Layout.LayoutInfo layout = Layout.get(ctxt).getInstanceLayoutInfoForNativeType(validated);
+                    Layout.LayoutInfo layout = Layout.getForInterpreter(ctxt).getInstanceLayoutInfoForNativeType(validated);
                     resolved = layout.getCompoundType();
                     ref.set(resolved);
                 }
