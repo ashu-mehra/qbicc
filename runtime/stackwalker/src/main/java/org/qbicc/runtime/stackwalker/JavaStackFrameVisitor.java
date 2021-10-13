@@ -93,7 +93,7 @@ public class JavaStackFrameVisitor implements StackFrameVisitor {
             String className = StringPoolAccessor.getString(MethodData.getClassNameIndex(minfoIndex));
             String methodName = StringPoolAccessor.getString(MethodData.getMethodNameIndex(minfoIndex));
             String fileName = StringPoolAccessor.getString(MethodData.getFileNameIndex(minfoIndex));
-            //printString(className + "#" + methodName + "(" + fileName + ":" + lineNumber + ")");
+            printString(className + "#" + methodName + "(" + fileName + ":" + lineNumber + ")");
             fillStackTraceElement(steArray[i], className, methodName, fileName, lineNumber);
         }
     }
