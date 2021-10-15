@@ -4,12 +4,13 @@ import static org.qbicc.runtime.CNative.*;
 import static org.qbicc.runtime.stdc.Stdint.*;
 
 public final class MethodData {
+
     @internal
     public static final class method_info extends object {
-        public uint32_t fileNameIndex;
-        public uint32_t classNameIndex;
-        public uint32_t methodNameIndex;
-        public uint32_t methodDescIndex;
+        public uint8_t_ptr fileName;
+        public uint8_t_ptr className;
+        public uint8_t_ptr methodName;
+        public uint8_t_ptr methodDesc;
     }
 
     public static final class method_info_ptr extends ptr<method_info> {}
@@ -22,7 +23,7 @@ public final class MethodData {
     @extern
     public static method_info[] qbicc_method_info_table;
 
-    public static int getFileNameIndex(int minfoIndex) {
+/*    public static int getFileNameIndex(int minfoIndex) {
         return qbicc_method_info_table[minfoIndex].fileNameIndex.intValue();
     }
 
@@ -36,7 +37,7 @@ public final class MethodData {
 
     public static int getMethodDescIndex(int minfoIndex) {
         return qbicc_method_info_table[minfoIndex].methodDescIndex.intValue();
-    }
+    }*/
 
     public static method_info getMethodInfo(int minfoIndex) {
         return qbicc_method_info_table[minfoIndex];
@@ -79,20 +80,26 @@ public final class MethodData {
     @extern
     public static int qbicc_instruction_list_size;
 
-    public static uint64_t getInstructionAddress(int index) {
+/*    public static uint64_t getInstructionAddress(int index) {
         return qbicc_instruction_list[index];
-    }
+    }*/
 
-    public static int getInstructionListSize() {
+    /*public static int getInstructionListSize() {
         return qbicc_instruction_list_size;
-    }
+    }*/
+
+    public static native long getInstructionAddress(int index);
+    public static native int getInstructionListSize();
+
 
     @extern
     public static uint32_t[] qbicc_source_code_index_list;
 
-    public static uint32_t getSourceCodeInfoIndex(int index) {
+/*    public static uint32_t getSourceCodeInfoIndex(int index) {
         return qbicc_source_code_index_list[index];
-    }
+    }*/
+
+    public static native int getSourceCodeInfoIndex(int index);
 
 /*    @extern
     public static uint32_t_ptr table;*/
@@ -123,5 +130,9 @@ public final class MethodData {
         long address = qbicc_instruction_map_table[index].function_addr.longValue();
         return address;
     }*/
+
+    public static native String getFileName(int minfoIndex);
+    public static native String getClassName(int minfoIndex);
+    public static native String getMethodName(int minfoIndex);
 }
 

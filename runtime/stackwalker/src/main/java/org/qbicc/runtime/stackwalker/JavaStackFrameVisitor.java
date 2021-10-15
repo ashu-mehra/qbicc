@@ -13,6 +13,7 @@ public class JavaStackFrameVisitor implements StackFrameVisitor {
         sourceCodeIndexList = new int[INITIAL_SIZE];
         depth = 0;
     }
+/*
 
     private StackTraceElement buildStackTraceElement(int instructionIndex) {
         int scIndex = MethodData.getSourceCodeInfoIndex(instructionIndex).intValue();
@@ -23,6 +24,7 @@ public class JavaStackFrameVisitor implements StackFrameVisitor {
         String fileName = StringPoolAccessor.getString(MethodData.getFileNameIndex(minfoIndex));
         return new StackTraceElement(className, methodName, fileName, lineNumber);
     }
+*/
 
     private int findInstructionInMethodData(long ip) {
         // do a binary search in instruction table
@@ -30,7 +32,7 @@ public class JavaStackFrameVisitor implements StackFrameVisitor {
         int lower = 0;
         while (upper >= lower) {
             int mid = (upper+lower)/2;
-            long addr = MethodData.getInstructionAddress(mid).longValue();
+            long addr = MethodData.getInstructionAddress(mid);
             if (ip == addr) {
                 return mid;
             } else if (ip > addr) {
@@ -71,6 +73,8 @@ public class JavaStackFrameVisitor implements StackFrameVisitor {
 
     private static native void fillStackTraceElement(StackTraceElement element, String className, String methodName, String fileName, int lineNumber);
 
+    private static native void fillStackTraceElement(StackTraceElement element, int instructionIndex);
+
     @CNative.extern
     public static native int putchar(int arg);
 
@@ -87,14 +91,21 @@ public class JavaStackFrameVisitor implements StackFrameVisitor {
     public static void fillStackTraceElements(StackTraceElement[] steArray, Object backtrace, int depth) {
         int sourceCodeIndexList[] = (int[]) backtrace;
         for (int i = 0; i < depth; i++) {
-            int scIndex = MethodData.getSourceCodeInfoIndex(sourceCodeIndexList[i]).intValue();
+/*            int scIndex = MethodData.getSourceCodeInfoIndex(sourceCodeIndexList[i]).intValue();
             int lineNumber = MethodData.getLineNumber(scIndex);
             int minfoIndex = MethodData.getMethodInfoIndex(scIndex);
             String className = StringPoolAccessor.getString(MethodData.getClassNameIndex(minfoIndex));
             String methodName = StringPoolAccessor.getString(MethodData.getMethodNameIndex(minfoIndex));
             String fileName = StringPoolAccessor.getString(MethodData.getFileNameIndex(minfoIndex));
             printString(className + "#" + methodName + "(" + fileName + ":" + lineNumber + ")");
-            fillStackTraceElement(steArray[i], className, methodName, fileName, lineNumber);
+            fillStackTraceElement(steArray[i], className, methodName, fileName, lineNumber);*/
+            int scIndex = MethodData.getSourceCodeInfoIndex(sourceCodeIndexList[i]);
+            int minfoIndex = MethodData.getMethodInfoIndex(scIndex);
+            String className = MethodData.getClassName(minfoIndex);
+            String fileName = MethodData.getFileName(minfoIndex);
+            String methodName = MethodData.getMethodName(minfoIndex);
+            printString(className + "#" + methodName + "(" + fileName + ")");
+            fillStackTraceElement(steArray[i], sourceCodeIndexList[i]);
         }
     }
 }

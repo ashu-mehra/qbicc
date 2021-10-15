@@ -37,6 +37,10 @@
             <groupId>${project.groupId}</groupId>
             <artifactId>qbicc-plugin-serialization</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.qbicc</groupId>
+            <artifactId>qbicc-plugin-methodinfo</artifactId>
+        </dependency>
     </dependencies>
 
 </project>
