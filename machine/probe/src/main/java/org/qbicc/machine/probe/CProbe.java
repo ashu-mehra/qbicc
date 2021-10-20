@@ -305,12 +305,12 @@ public final class CProbe {
             int idx = functionNames.size();
             add(macro("QBICC_PASTE1", List.of("x"), "#x"));
             add(macro("QBICC_PASTE2", List.of("x"), "QBICC_PASTE1(x)"));
-            line(line, sourceFile);
             Identifier fnName = new Identifier("fn_name" + idx);
             line(line, sourceFile);
             // work around to create array types - create a typedef
             add(typedef(NamedType.CHAR, "char_array[]"));
             NamedType charArray = new NamedType("char_array");
+            line(line, sourceFile);
             add(decl(charArray, "fn_name", idx, call("QBICC_PASTE2", call(name, null))));
             line(line, sourceFile);
             add(decl(NamedType.UNSIGNED_LONG, "fn_name_size", idx, sizeof(fnName)));
@@ -1351,7 +1351,7 @@ public final class CProbe {
 
         @Override
         StringBuilder appendTo(StringBuilder b) {
-            return type.appendTo(b.append("typedef")).append(' ').append(alias);
+            return nl(type.appendTo(b.append("typedef").append(' ')).append(' ').append(alias).append(';'));
         }
     }
 
