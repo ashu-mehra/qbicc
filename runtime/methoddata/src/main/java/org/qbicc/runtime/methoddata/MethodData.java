@@ -1,5 +1,7 @@
 package org.qbicc.runtime.methoddata;
 
+import org.qbicc.runtime.CNative;
+
 import static org.qbicc.runtime.CNative.*;
 import static org.qbicc.runtime.stdc.Stdint.*;
 
@@ -39,9 +41,9 @@ public final class MethodData {
         return qbicc_method_info_table[minfoIndex].methodDescIndex.intValue();
     }*/
 
-    public static method_info getMethodInfo(int minfoIndex) {
+/*    public static method_info getMethodInfo(int minfoIndex) {
         return qbicc_method_info_table[minfoIndex];
-    }
+    }*/
 
     @internal
     public static final class source_code_info extends object {
@@ -61,6 +63,7 @@ public final class MethodData {
     @extern
     public static source_code_info[] qbicc_source_code_info_table;
 
+/*
     public static int getMethodInfoIndex(int scIndex) {
         return qbicc_source_code_info_table[scIndex].minfo_index.intValue();
     }
@@ -68,11 +71,12 @@ public final class MethodData {
     public static int getLineNumber(int scIndex) {
         return qbicc_source_code_info_table[scIndex].line_number.intValue();
     }
+*/
 
 
-    public static source_code_info getSourceCodeInfo(int scIndex) {
+    /*public static source_code_info getSourceCodeInfo(int scIndex) {
         return qbicc_source_code_info_table[scIndex];
-    }
+    }*/
 
     @extern
     public static uint64_t[] qbicc_instruction_list;
@@ -88,8 +92,44 @@ public final class MethodData {
         return qbicc_instruction_list_size;
     }*/
 
+    public static native String getFileName(int minfoIndex);
+    public static native String getClassName(int minfoIndex);
+    public static native String getMethodName(int minfoIndex);
+
+    public static native int getMethodInfoIndex(int scIndex);
+    public static native int getLineNumber(int scIndex);
+    public static native int getInlinedAtIndex(int scIndex);
+
+    public static native int getSourceCodeInfoIndex(int index);
     public static native long getInstructionAddress(int index);
     public static native int getInstructionListSize();
+
+    private static native void fillStackTraceElement(StackTraceElement element, int scIndex);
+
+    @CNative.extern
+    public static native int putchar(int arg);
+
+    // helper to print stack trace for debugging
+    private static void printString(String string) {
+        char[] contents = string.toCharArray();
+        for (char ch: contents) {
+            putchar((byte)ch);
+        }
+        putchar('\n');
+    }
+
+    public static void fillStackTraceElements(StackTraceElement[] steArray, Object backtrace, int depth) {
+        int sourceCodeIndexList[] = (int[]) backtrace;
+        for (int i = 0; i < depth; i++) {
+            int scIndex = sourceCodeIndexList[i];
+            int minfoIndex = getMethodInfoIndex(scIndex);
+            String className = getClassName(minfoIndex);
+            String fileName = getFileName(minfoIndex);
+            String methodName = getMethodName(minfoIndex);
+            printString(className + "#" + methodName + "(" + fileName + ")");
+            fillStackTraceElement(steArray[i], sourceCodeIndexList[i]);
+        }
+    }
 
 
     @extern
@@ -99,7 +139,6 @@ public final class MethodData {
         return qbicc_source_code_index_list[index];
     }*/
 
-    public static native int getSourceCodeInfoIndex(int index);
 
 /*    @extern
     public static uint32_t_ptr table;*/
@@ -131,8 +170,5 @@ public final class MethodData {
         return address;
     }*/
 
-    public static native String getFileName(int minfoIndex);
-    public static native String getClassName(int minfoIndex);
-    public static native String getMethodName(int minfoIndex);
 }
 

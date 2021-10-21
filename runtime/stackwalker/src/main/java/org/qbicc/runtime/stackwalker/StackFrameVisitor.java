@@ -1,6 +1,6 @@
 package org.qbicc.runtime.stackwalker;
 
+@FunctionalInterface
 public interface StackFrameVisitor {
-    boolean visitFrame(long ip, long sp);
-    //StackTraceElement[] getStackTrace();
+    void visitFrame(int frameIndex, long ip, long sp);
 }

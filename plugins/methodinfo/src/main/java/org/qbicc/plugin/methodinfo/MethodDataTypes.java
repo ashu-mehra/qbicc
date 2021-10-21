@@ -68,56 +68,6 @@ public class MethodDataTypes {
             .addNextMember("instructionTableSize", uint32Type)
             .build();
 
-        ArrayType methodInfoArrayType = ts.getArrayType(methodInfoType, 0); // size is not known initially
-        ArrayType sourceCodeInfoArrayType = ts.getArrayType(sourceCodeInfoType, 0); // size is not known initially
-        ArrayType sourceCodeIndexArrayType = ts.getArrayType(uint32Type, 0); // size is not known initially
-        ArrayType instructionArrayType = ts.getArrayType(uint64Type, 0); // size is not known initially
-
-/*        // create a GlobalVariable for shared access to the methodInfoTable
-        GlobalVariableElement.Builder builder = GlobalVariableElement.builder();
-        builder.setName(QBICC_METHOD_INFO_TABLE);
-        builder.setType(methodInfoArrayType);
-        builder.setEnclosingType(ctxt.getDefaultTypeDefinition().load());
-        builder.setDescriptor(BaseTypeDescriptor.V);
-        builder.setSignature(BaseTypeSignature.V);
-        methodInfoTable = builder.build();
-
-        // create a GlobalVariable for shared access to the sourceCodeInfoTable
-        builder = GlobalVariableElement.builder();
-        builder.setName(QBICC_SOURCE_CODE_INFO_TABLE);
-        builder.setType(sourceCodeInfoArrayType);
-        builder.setEnclosingType(ctxt.getDefaultTypeDefinition().load());
-        builder.setDescriptor(BaseTypeDescriptor.V);
-        builder.setSignature(BaseTypeSignature.V);
-        sourceCodeInfoTable = builder.build();
-
-        // create a GlobalVariable for shared access to the sourceCodeIndexList
-        builder = GlobalVariableElement.builder();
-        builder.setName(QBICC_SOURCE_CODE_INDEX_LIST);
-        builder.setType(sourceCodeIndexArrayType);
-        builder.setEnclosingType(ctxt.getDefaultTypeDefinition().load());
-        builder.setDescriptor(BaseTypeDescriptor.V);
-        builder.setSignature(BaseTypeSignature.V);
-        sourceCodeIndexList = builder.build();
-
-        // create a GlobalVariable for shared access to the instruction list
-        builder = GlobalVariableElement.builder();
-        builder.setName(QBICC_INSTRUCTION_LIST);
-        builder.setType(instructionArrayType);
-        builder.setEnclosingType(ctxt.getDefaultTypeDefinition().load());
-        builder.setDescriptor(BaseTypeDescriptor.V);
-        builder.setSignature(BaseTypeSignature.V);
-        instructionList = builder.build();
-
-        // create a GlobalVariable for shared access to the instruction list
-        builder = GlobalVariableElement.builder();
-        builder.setName(QBICC_INSTRUCTION_LIST_SIZE);
-        builder.setType(uint32Type);
-        builder.setEnclosingType(ctxt.getDefaultTypeDefinition().load());
-        builder.setDescriptor(BaseTypeDescriptor.I);
-        builder.setSignature(BaseTypeSignature.I);
-        instructionListSize = builder.build();*/
-
         GlobalVariableElement.Builder builder = GlobalVariableElement.builder();
         builder.setName(QBICC_GLOBAL_METHOD_DATA);
         builder.setType(globalMethodDataType);

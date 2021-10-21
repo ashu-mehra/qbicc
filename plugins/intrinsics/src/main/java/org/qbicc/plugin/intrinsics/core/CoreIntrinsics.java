@@ -77,6 +77,7 @@ import org.qbicc.type.descriptor.BaseTypeDescriptor;
 import org.qbicc.type.descriptor.ClassTypeDescriptor;
 import org.qbicc.type.descriptor.MethodDescriptor;
 import org.qbicc.type.descriptor.TypeDescriptor;
+import org.qbicc.type.generic.BaseTypeSignature;
 
 /**
  * Core JDK intrinsics.
@@ -96,7 +97,6 @@ public final class CoreIntrinsics {
         registerJavaLangNumberIntrinsics(ctxt);
         registerJavaLangFloatDoubleMathIntrinsics(ctxt);
         registerJavaLangRuntimeIntrinsics(ctxt);
-        registerOrgQbiccJavaStackFrameVisitorIntrinsics(ctxt);
         registerOrgQbiccObjectModelIntrinsics(ctxt);
         registerOrgQbiccRuntimeMainIntrinsics(ctxt);
         registerOrgQbiccRuntimeValuesIntrinsics(ctxt);
@@ -501,30 +501,29 @@ public final class CoreIntrinsics {
 
         ClassTypeDescriptor jloDesc = ClassTypeDescriptor.synthesize(classContext, "java/lang/Object");
         ClassTypeDescriptor jltDesc = ClassTypeDescriptor.synthesize(classContext, "java/lang/Throwable");
-        ClassTypeDescriptor steDesc = ClassTypeDescriptor.synthesize(classContext, "java/lang/StackTraceElement");
-        ArrayTypeDescriptor steArrayDesc = ArrayTypeDescriptor.of(classContext, steDesc);
 
-        ClassTypeDescriptor stackWalkerDesc = ClassTypeDescriptor.synthesize(classContext, "org/qbicc/runtime/stackwalker/StackWalker");
-        ClassTypeDescriptor stackFrameVisitorDesc = ClassTypeDescriptor.synthesize(classContext, "org/qbicc/runtime/stackwalker/StackFrameVisitor");
-        ClassTypeDescriptor javaStackFrameVisitorDesc = ClassTypeDescriptor.synthesize(classContext, "org/qbicc/runtime/stackwalker/JavaStackFrameVisitor");
-        MethodDescriptor sfVisitorToBoolDesc = MethodDescriptor.synthesize(classContext, BaseTypeDescriptor.Z, List.of(stackFrameVisitorDesc));
+        ClassTypeDescriptor jswDesc = ClassTypeDescriptor.synthesize(classContext, "org/qbicc/runtime/stackwalker/JavaStackWalker");
+        ClassTypeDescriptor jsfvDesc = ClassTypeDescriptor.synthesize(classContext, "org/qbicc/runtime/stackwalker/JavaStackFrameVisitor");
+        ClassTypeDescriptor jsfcDesc = ClassTypeDescriptor.synthesize(classContext, "org/qbicc/runtime/stackwalker/JavaStackFrameCache");
+        MethodDescriptor jsfvToVoidDesc = MethodDescriptor.synthesize(classContext, BaseTypeDescriptor.V, List.of(jsfvDesc));
         MethodDescriptor voidToObjectDesc = MethodDescriptor.synthesize(classContext, jloDesc, List.of());
         MethodDescriptor voidToIntDesc = MethodDescriptor.synthesize(classContext, BaseTypeDescriptor.I, List.of());
+        MethodDescriptor intToVoidDesc = MethodDescriptor.synthesize(classContext, BaseTypeDescriptor.V, List.of(BaseTypeDescriptor.I));
 
         InstanceIntrinsic fillInStackTrace = (builder, instance, target, arguments) -> {
-            Value visitor = builder.new_(javaStackFrameVisitorDesc);
-            builder.call(builder.getFirstBuilder().constructorOf(visitor, javaStackFrameVisitorDesc, MethodDescriptor.VOID_METHOD_DESCRIPTOR), List.of());
-            builder.call(builder.staticMethod(stackWalkerDesc, "walkStack", sfVisitorToBoolDesc), List.of(visitor));
+            Value frameCount = builder.call(builder.staticMethod(jswDesc, "getFrameCount", voidToIntDesc), List.of());
+            Value visitor = builder.new_(jsfcDesc);
+            builder.call(builder.getFirstBuilder().constructorOf(visitor, jsfcDesc, intToVoidDesc), List.of(frameCount));
+            builder.call(builder.staticMethod(jswDesc, "walkStack", jsfvToVoidDesc), List.of(visitor));
 
-            // set Throwable#backtrace and Throwable#depth fields using JavaStackFrameVisitor#getBacktrace() and JavaStackFrameVisitor#getDepth()
+            // set Throwable#backtrace and Throwable#depth fields
             DefinedTypeDefinition jlt = classContext.findDefinedType("java/lang/Throwable");
             LoadedTypeDefinition jltVal = jlt.load();
             FieldElement backtraceField = jltVal.findField("backtrace");
             FieldElement depthField = jltVal.findField("depth");
-            Value backtraceValue = builder.call(builder.virtualMethodOf(visitor, javaStackFrameVisitorDesc, "getBacktrace", voidToObjectDesc), List.of());
-            Value depthValue = builder.call(builder.virtualMethodOf(visitor, javaStackFrameVisitorDesc, "getDepth", voidToIntDesc), List.of());
+            Value backtraceValue = builder.call(builder.virtualMethodOf(visitor, jsfcDesc, "getSourceCodeIndexList", voidToObjectDesc), List.of());
             builder.store(builder.instanceFieldOf(builder.referenceHandle(instance), backtraceField), backtraceValue, MemoryAtomicityMode.NONE);
-            builder.store(builder.instanceFieldOf(builder.referenceHandle(instance), depthField), depthValue, MemoryAtomicityMode.NONE);
+            builder.store(builder.instanceFieldOf(builder.referenceHandle(instance), depthField), frameCount, MemoryAtomicityMode.NONE);
             return instance;
         };
 
@@ -535,7 +534,7 @@ public final class CoreIntrinsics {
         Intrinsics intrinsics = Intrinsics.get(ctxt);
         ClassContext classContext = ctxt.getBootstrapClassContext();
 
-        ClassTypeDescriptor jsfvDesc = ClassTypeDescriptor.synthesize(classContext, "org/qbicc/runtime/stackwalker/JavaStackFrameVisitor");
+        ClassTypeDescriptor mdDesc = ClassTypeDescriptor.synthesize(classContext, "org/qbicc/runtime/methoddata/MethodData");
         ClassTypeDescriptor steDesc = ClassTypeDescriptor.synthesize(classContext, "java/lang/StackTraceElement");
         ClassTypeDescriptor jloDesc = ClassTypeDescriptor.synthesize(classContext, "java/lang/Object");
         ClassTypeDescriptor jltDesc = ClassTypeDescriptor.synthesize(classContext, "java/lang/Throwable");
@@ -551,12 +550,11 @@ public final class CoreIntrinsics {
             Value backtraceValue = builder.load(builder.instanceFieldOf(builder.referenceHandle(arguments.get(1)), backtraceField), MemoryAtomicityMode.NONE);
             Value depthValue = builder.load(builder.instanceFieldOf(builder.referenceHandle(arguments.get(1)), depthField), MemoryAtomicityMode.NONE);
 
-            return builder.getFirstBuilder().call(builder.staticMethod(jsfvDesc, "fillStackTraceElements", steArrayObjectIntToVoidDesc), List.of(arguments.get(0), backtraceValue, depthValue));
+            return builder.getFirstBuilder().call(builder.staticMethod(mdDesc, "fillStackTraceElements", steArrayObjectIntToVoidDesc), List.of(arguments.get(0), backtraceValue, depthValue));
         };
 
         intrinsics.registerIntrinsic(steDesc, "initStackTraceElements", steArrayThrowableToVoidDesc, initStackTraceElements);
     }
-
 
     private static void registerOrgQbiccRuntimeMethodDataIntrinsics(final CompilationContext ctxt) {
         Intrinsics intrinsics = Intrinsics.get(ctxt);
@@ -564,14 +562,20 @@ public final class CoreIntrinsics {
 
         ClassTypeDescriptor jlsDesc = ClassTypeDescriptor.synthesize(classContext, "java/lang/String");
         ClassTypeDescriptor mdDesc = ClassTypeDescriptor.synthesize(classContext, "org/qbicc/runtime/methoddata/MethodData");
+        ClassTypeDescriptor jlsteDesc = ClassTypeDescriptor.synthesize(classContext, "java/lang/StackTraceElement");
+
         MethodDescriptor voidToIntDesc = MethodDescriptor.synthesize(classContext, BaseTypeDescriptor.I, List.of());
         MethodDescriptor intToLongDesc = MethodDescriptor.synthesize(classContext, BaseTypeDescriptor.J, List.of(BaseTypeDescriptor.I));
         MethodDescriptor intToIntDesc = MethodDescriptor.synthesize(classContext, BaseTypeDescriptor.I, List.of(BaseTypeDescriptor.I));
         MethodDescriptor intTojlsDesc = MethodDescriptor.synthesize(classContext, jlsDesc, List.of(BaseTypeDescriptor.I));
+        MethodDescriptor steIntToVoidDesc = MethodDescriptor.synthesize(classContext, BaseTypeDescriptor.V, List.of(jlsteDesc, BaseTypeDescriptor.I));
+
+        MethodDataTypes mdTypes = MethodDataTypes.get(ctxt);
+        CompoundType gmdType = mdTypes.getGlobalMethodDataType();
+        CompoundType minfoType = mdTypes.getMethodInfoType();
+        CompoundType scInfoType = mdTypes.getSourceCodeInfoType();
 
         StaticIntrinsic getInstructionListSize = (builder, target, arguments) -> {
-            MethodDataTypes mdTypes = MethodDataTypes.get(ctxt);
-            CompoundType gmdType = mdTypes.getGlobalMethodDataType();
             GlobalVariable gmdVariable = (GlobalVariable) builder.globalVariable(mdTypes.getAndRegisterGlobalMethodData(builder.getCurrentElement()));
             return builder.load(builder.memberOf(gmdVariable, gmdType.getMember("instructionTableSize")), MemoryAtomicityMode.UNORDERED);
         };
@@ -579,8 +583,6 @@ public final class CoreIntrinsics {
         intrinsics.registerIntrinsic(mdDesc, "getInstructionListSize", voidToIntDesc, getInstructionListSize);
 
         StaticIntrinsic getInstructionAddress = (builder, target, arguments) -> {
-            MethodDataTypes mdTypes = MethodDataTypes.get(ctxt);
-            CompoundType gmdType = mdTypes.getGlobalMethodDataType();
             GlobalVariable gmdVariable = (GlobalVariable) builder.globalVariable(mdTypes.getAndRegisterGlobalMethodData(builder.getCurrentElement()));
             Value tablePointer = builder.load(builder.memberOf(gmdVariable, gmdType.getMember("instructionTable")), MemoryAtomicityMode.UNORDERED);
             return builder.load(builder.elementOf(builder.pointerHandle(tablePointer), arguments.get(0)), MemoryAtomicityMode.UNORDERED);
@@ -589,8 +591,6 @@ public final class CoreIntrinsics {
         intrinsics.registerIntrinsic(mdDesc, "getInstructionAddress", intToLongDesc, getInstructionAddress);
 
         StaticIntrinsic getSourceCodeInfoIndex = (builder, target, arguments) -> {
-            MethodDataTypes mdTypes = MethodDataTypes.get(ctxt);
-            CompoundType gmdType = mdTypes.getGlobalMethodDataType();
             GlobalVariable gmdVariable = (GlobalVariable) builder.globalVariable(mdTypes.getAndRegisterGlobalMethodData(builder.getCurrentElement()));
             Value tablePointer = builder.load(builder.memberOf(gmdVariable, gmdType.getMember("sourceCodeIndexTable")), MemoryAtomicityMode.UNORDERED);
             return builder.load(builder.elementOf(builder.pointerHandle(tablePointer), arguments.get(0)), MemoryAtomicityMode.UNORDERED);
@@ -599,25 +599,29 @@ public final class CoreIntrinsics {
         intrinsics.registerIntrinsic(mdDesc, "getSourceCodeInfoIndex", intToIntDesc, getSourceCodeInfoIndex);
 
         StaticIntrinsic getMethodInfoIndex = (builder, target, arguments) -> {
-            MethodDataTypes mdTypes = MethodDataTypes.get(ctxt);
-            CompoundType gmdType = mdTypes.getGlobalMethodDataType();
             GlobalVariable gmdVariable = (GlobalVariable) builder.globalVariable(mdTypes.getAndRegisterGlobalMethodData(builder.getCurrentElement()));
             Value tablePointer = builder.load(builder.memberOf(gmdVariable, gmdType.getMember("sourceCodeInfoTable")), MemoryAtomicityMode.UNORDERED);
 
-            CompoundType scInfoType = mdTypes.getSourceCodeInfoType();
             ValueHandle scInfoHandle = builder.elementOf(builder.pointerHandle(builder.bitCast(tablePointer, scInfoType.getPointer())), arguments.get(0));
             return builder.load(builder.memberOf(scInfoHandle, scInfoType.getMember("methodInfoIndex")), MemoryAtomicityMode.UNORDERED);
         };
 
         intrinsics.registerIntrinsic(mdDesc, "getMethodInfoIndex", intToIntDesc, getMethodInfoIndex);
 
+        StaticIntrinsic getInlinedAtIndex = (builder, target, arguments) -> {
+            GlobalVariable gmdVariable = (GlobalVariable) builder.globalVariable(mdTypes.getAndRegisterGlobalMethodData(builder.getCurrentElement()));
+            Value tablePointer = builder.load(builder.memberOf(gmdVariable, gmdType.getMember("sourceCodeInfoTable")), MemoryAtomicityMode.UNORDERED);
+
+            ValueHandle scInfoHandle = builder.elementOf(builder.pointerHandle(builder.bitCast(tablePointer, scInfoType.getPointer())), arguments.get(0));
+            return builder.load(builder.memberOf(scInfoHandle, scInfoType.getMember("inlinedAtIndex")), MemoryAtomicityMode.UNORDERED);
+        };
+
+        intrinsics.registerIntrinsic(mdDesc, "getInlinedAtIndex", intToIntDesc, getInlinedAtIndex);
+
         StaticIntrinsic getFileName = (builder, target, arguments) -> {
-            MethodDataTypes mdTypes = MethodDataTypes.get(ctxt);
-            CompoundType gmdType = mdTypes.getGlobalMethodDataType();
             GlobalVariable gmdVariable = (GlobalVariable) builder.globalVariable(mdTypes.getAndRegisterGlobalMethodData(builder.getCurrentElement()));
             Value tablePointer = builder.load(builder.memberOf(gmdVariable, gmdType.getMember("methodInfoTable")), MemoryAtomicityMode.UNORDERED);
 
-            CompoundType minfoType = mdTypes.getMethodInfoType();
             ValueHandle minfoHandle = builder.elementOf(builder.pointerHandle(builder.bitCast(tablePointer, minfoType.getPointer())), arguments.get(0));
             return builder.load(builder.memberOf(minfoHandle, minfoType.getMember("fileName")), MemoryAtomicityMode.UNORDERED);
         };
@@ -625,12 +629,9 @@ public final class CoreIntrinsics {
         intrinsics.registerIntrinsic(mdDesc, "getFileName", intTojlsDesc, getFileName);
 
         StaticIntrinsic getClassName = (builder, target, arguments) -> {
-            MethodDataTypes mdTypes = MethodDataTypes.get(ctxt);
-            CompoundType gmdType = mdTypes.getGlobalMethodDataType();
             GlobalVariable gmdVariable = (GlobalVariable) builder.globalVariable(mdTypes.getAndRegisterGlobalMethodData(builder.getCurrentElement()));
             Value tablePointer = builder.load(builder.memberOf(gmdVariable, gmdType.getMember("methodInfoTable")), MemoryAtomicityMode.UNORDERED);
 
-            CompoundType minfoType = mdTypes.getMethodInfoType();
             ValueHandle minfoHandle = builder.elementOf(builder.pointerHandle(builder.bitCast(tablePointer, minfoType.getPointer())), arguments.get(0));
             return builder.load(builder.memberOf(minfoHandle, minfoType.getMember("className")), MemoryAtomicityMode.UNORDERED);
         };
@@ -638,64 +639,23 @@ public final class CoreIntrinsics {
         intrinsics.registerIntrinsic(mdDesc, "getClassName", intTojlsDesc, getClassName);
 
         StaticIntrinsic getMethodName = (builder, target, arguments) -> {
-            MethodDataTypes mdTypes = MethodDataTypes.get(ctxt);
-            CompoundType gmdType = mdTypes.getGlobalMethodDataType();
             GlobalVariable gmdVariable = (GlobalVariable) builder.globalVariable(mdTypes.getAndRegisterGlobalMethodData(builder.getCurrentElement()));
             Value tablePointer = builder.load(builder.memberOf(gmdVariable, gmdType.getMember("methodInfoTable")), MemoryAtomicityMode.UNORDERED);
 
-            CompoundType minfoType = mdTypes.getMethodInfoType();
             ValueHandle minfoHandle = builder.elementOf(builder.pointerHandle(builder.bitCast(tablePointer, minfoType.getPointer())), arguments.get(0));
             return builder.load(builder.memberOf(minfoHandle, minfoType.getMember("methodName")), MemoryAtomicityMode.UNORDERED);
         };
 
         intrinsics.registerIntrinsic(mdDesc, "getMethodName", intTojlsDesc, getMethodName);
-    }
-
-    public static void registerOrgQbiccJavaStackFrameVisitorIntrinsics(CompilationContext ctxt) {
-        Intrinsics intrinsics = Intrinsics.get(ctxt);
-        ClassContext classContext = ctxt.getBootstrapClassContext();
-
-        ClassTypeDescriptor jsfvDesc = ClassTypeDescriptor.synthesize(classContext, "org/qbicc/runtime/stackwalker/JavaStackFrameVisitor");
-        ClassTypeDescriptor jlsDesc = ClassTypeDescriptor.synthesize(classContext, "java/lang/String");
-        ClassTypeDescriptor jlsteDesc = ClassTypeDescriptor.synthesize(classContext, "java/lang/StackTraceElement");
-        MethodDescriptor fillSteDesc = MethodDescriptor.synthesize(classContext, BaseTypeDescriptor.V, List.of(jlsteDesc, jlsDesc, jlsDesc, jlsDesc, BaseTypeDescriptor.I));
-        MethodDescriptor fillSteDescv2 = MethodDescriptor.synthesize(classContext, BaseTypeDescriptor.V, List.of(jlsteDesc, BaseTypeDescriptor.I));
 
         StaticIntrinsic fillStackTraceElement = (builder, target, arguments) -> {
             DefinedTypeDefinition jls = classContext.findDefinedType("java/lang/StackTraceElement");
             LoadedTypeDefinition jlsVal = jls.load();
-            FieldElement declaringClass = jlsVal.findField("declaringClass");
-            FieldElement methodName = jlsVal.findField("methodName");
-            FieldElement fileName = jlsVal.findField("fileName");
-            FieldElement lineNumber = jlsVal.findField("lineNumber");
+            Value scIndex = arguments.get(1);
 
-            ValueHandle steRefHandle = builder.referenceHandle(arguments.get(0));
-
-            builder.store(builder.instanceFieldOf(steRefHandle, declaringClass), arguments.get(1), MemoryAtomicityMode.NONE);
-            builder.store(builder.instanceFieldOf(steRefHandle, methodName), arguments.get(2), MemoryAtomicityMode.NONE);
-            builder.store(builder.instanceFieldOf(steRefHandle, fileName), arguments.get(3), MemoryAtomicityMode.NONE);
-            builder.store(builder.instanceFieldOf(steRefHandle, lineNumber), arguments.get(4), MemoryAtomicityMode.NONE);
-            return ctxt.getLiteralFactory().zeroInitializerLiteralOfType(ctxt.getTypeSystem().getVoidType()); // void literal
-        };
-
-        intrinsics.registerIntrinsic(jsfvDesc, "fillStackTraceElement", fillSteDesc, fillStackTraceElement);
-
-        StaticIntrinsic fillStackTraceElementv2 = (builder, target, arguments) -> {
-            DefinedTypeDefinition jls = classContext.findDefinedType("java/lang/StackTraceElement");
-            LoadedTypeDefinition jlsVal = jls.load();
-            Value instructionIndex = arguments.get(1);
-
-            MethodDataTypes mdTypes = MethodDataTypes.get(ctxt);
-            CompoundType gmdType = mdTypes.getGlobalMethodDataType();
             GlobalVariable gmdVariable = (GlobalVariable) builder.globalVariable(mdTypes.getAndRegisterGlobalMethodData(builder.getCurrentElement()));
 
-            CompoundType minfoType = mdTypes.getMethodInfoType();
-            CompoundType scInfoType = mdTypes.getSourceCodeInfoType();
-
-            Value tablePointer = builder.load(builder.memberOf(gmdVariable, gmdType.getMember("sourceCodeIndexTable")), MemoryAtomicityMode.UNORDERED);
-            Value scIndex = builder.load(builder.elementOf(builder.pointerHandle(tablePointer), instructionIndex), MemoryAtomicityMode.UNORDERED);
-
-            tablePointer = builder.load(builder.memberOf(gmdVariable, gmdType.getMember("sourceCodeInfoTable")), MemoryAtomicityMode.UNORDERED);
+            Value tablePointer = builder.load(builder.memberOf(gmdVariable, gmdType.getMember("sourceCodeInfoTable")), MemoryAtomicityMode.UNORDERED);
             ValueHandle scInfoHandle = builder.elementOf(builder.pointerHandle(builder.bitCast(tablePointer, scInfoType.getPointer())), scIndex);
             Value minfoIndex = builder.load(builder.memberOf(scInfoHandle, scInfoType.getMember("methodInfoIndex")), MemoryAtomicityMode.UNORDERED);
             Value lineNumber = builder.load(builder.memberOf(scInfoHandle, scInfoType.getMember("lineNumber")), MemoryAtomicityMode.UNORDERED);
@@ -705,25 +665,6 @@ public final class CoreIntrinsics {
             Value fileName = builder.load(builder.memberOf(minfoHandle, minfoType.getMember("fileName")), MemoryAtomicityMode.UNORDERED);
             Value className = builder.load(builder.memberOf(minfoHandle, minfoType.getMember("className")), MemoryAtomicityMode.UNORDERED);
             Value methodName = builder.load(builder.memberOf(minfoHandle, minfoType.getMember("methodName")), MemoryAtomicityMode.UNORDERED);
-/*
-            GlobalVariableElement methodInfoArray = mdTypes.getAndRegisterGlobalMethodInfoArray(builder.getCurrentElement());
-            GlobalVariableElement scInfoArray = mdTypes.getAndRegisterGlobalSourceCodeInfoArray(builder.getCurrentElement());
-            GlobalVariableElement scIndexArray = mdTypes.getAndRegisterGlobalSourceCodeIndexArray(builder.getCurrentElement());
-            GlobalVariableElement instructionArray = mdTypes.getAndRegisterGlobalInstructionArray(builder.getCurrentElement());
-            GlobalVariableElement instructionSize = mdTypes.getAndRegisterGlobalInstructionArraySize(builder.getCurrentElement());
-
-
-            //Value componentClass = builder.load(builder.elementOf(builder.globalVariable(classArrayGlobal), typeId), MemoryAtomicityMode.UNORDERED);
-
-            Value scIndex = builder.load(builder.elementOf(builder.globalVariable(scIndexArray), instructionIndex), MemoryAtomicityMode.UNORDERED);
-            ValueHandle scInfoHandle = builder.elementOf(builder.globalVariable(scInfoArray), scIndex);
-            Value lineNumber = builder.load(builder.memberOf(scInfoHandle, scInfoType.getMember("lineNumber")), MemoryAtomicityMode.UNORDERED);
-            Value minfoIndex = builder.load(builder.memberOf(scInfoHandle, scInfoType.getMember("methodInfoIndex")), MemoryAtomicityMode.UNORDERED);
-            GlobalVariable minfoArrayHandle = (GlobalVariable) builder.globalVariable(methodInfoArray);
-            ValueHandle minfoHandle = builder.elementOf(minfoArrayHandle, minfoIndex);
-            Value fileName = builder.load(builder.memberOf(minfoHandle, minfoType.getMember("fileName")), MemoryAtomicityMode.UNORDERED);
-            Value className = builder.load(builder.memberOf(minfoHandle, minfoType.getMember("className")), MemoryAtomicityMode.UNORDERED);
-            Value methodName = builder.load(builder.memberOf(minfoHandle, minfoType.getMember("methodName")), MemoryAtomicityMode.UNORDERED);*/
 
             ValueHandle steRefHandle = builder.referenceHandle(arguments.get(0));
             FieldElement dcField = jlsVal.findField("declaringClass");
@@ -738,7 +679,7 @@ public final class CoreIntrinsics {
             return ctxt.getLiteralFactory().zeroInitializerLiteralOfType(ctxt.getTypeSystem().getVoidType()); // void literal
         };
 
-        intrinsics.registerIntrinsic(jsfvDesc, "fillStackTraceElement", fillSteDescv2, fillStackTraceElementv2);
+        intrinsics.registerIntrinsic(mdDesc, "fillStackTraceElement", steIntToVoidDesc, fillStackTraceElement);
     }
 
     public static void registerJavaLangNumberIntrinsics(CompilationContext ctxt) {
