@@ -24,10 +24,12 @@ import org.qbicc.type.FunctionType;
 import org.qbicc.type.TypeSystem;
 import org.qbicc.type.definition.DefinedTypeDefinition;
 import org.qbicc.type.definition.NativeMethodConfigurator;
+import org.qbicc.type.definition.element.ConstructorElement;
 import org.qbicc.type.definition.element.ExecutableElement;
 import org.qbicc.type.definition.element.FieldElement;
 import org.qbicc.type.definition.element.MemberElement;
 import org.qbicc.type.definition.element.MethodElement;
+import org.qbicc.type.descriptor.MethodDescriptor;
 
 /**
  *
@@ -52,9 +54,14 @@ public interface CompilationContext extends DiagnosticContext {
 
     ClassContext constructClassContext(VmClassLoader classLoaderObject);
 
+    /* TODO: Add method descriptor as a parameter */
+    MethodElement getRuntimeHelperMethod(String runtimeClass, String helperName);
+
     MethodElement getVMHelperMethod(String helperName);
 
     MethodElement getOMHelperMethod(String helperName);
+
+    ConstructorElement getRuntimeClassConstructor(String runtimeClass, MethodDescriptor descriptor);
 
     void enqueue(ExecutableElement element);
 

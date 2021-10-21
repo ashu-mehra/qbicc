@@ -40,6 +40,7 @@ import org.qbicc.type.annotation.type.TypeAnnotationList;
 import org.qbicc.context.ClassContext;
 import org.qbicc.type.definition.DefinedTypeDefinition;
 import org.qbicc.type.definition.NativeMethodConfigurator;
+import org.qbicc.type.definition.element.ConstructorElement;
 import org.qbicc.type.definition.element.Element;
 import org.qbicc.type.definition.element.ExecutableElement;
 import org.qbicc.type.definition.element.FieldElement;
@@ -75,9 +76,13 @@ public class TestClassContext implements ClassContext {
             return null;
         }
 
+        public MethodElement getRuntimeHelperMethod(String runtimeClass, String helperName) { return null; }
+
         public MethodElement getVMHelperMethod(String helperName) { return null; }
 
         public MethodElement getOMHelperMethod(String helperName) { return null; }
+
+        public ConstructorElement getRuntimeClassConstructor(String runtimeClass, MethodDescriptor descriptor) { return null; }
 
         public void enqueue(final ExecutableElement element) {
 
