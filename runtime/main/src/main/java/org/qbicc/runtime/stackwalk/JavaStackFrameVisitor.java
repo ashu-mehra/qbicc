@@ -1,7 +1,6 @@
-package org.qbicc.runtime.stackwalker;
+package org.qbicc.runtime.stackwalk;
 
 import org.qbicc.runtime.CNative;
-import org.qbicc.runtime.methoddata.MethodData;
 
 @FunctionalInterface
 public interface JavaStackFrameVisitor {

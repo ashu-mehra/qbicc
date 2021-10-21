@@ -1,6 +1,4 @@
-package org.qbicc.runtime.stackwalker;
-
-import org.qbicc.runtime.methoddata.MethodData;
+package org.qbicc.runtime.stackwalk;
 
 public class JavaStackWalker implements StackFrameVisitor {
     private JavaStackFrameVisitor visitor;

@@ -1,4 +1,4 @@
-package org.qbicc.runtime.stackwalker;
+package org.qbicc.runtime.stackwalk;
 
 public class StackWalkData {
     private int nativeFrameCount;

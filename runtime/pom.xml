@@ -28,9 +28,6 @@
 
         <!-- Plugin implementation modules -->
         <module>gc</module>
-        <module>methoddata</module>
-        <module>stackwalker</module>
-        <module>stringpool</module>
     </modules>
 
     <build>
