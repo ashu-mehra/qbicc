@@ -44,7 +44,7 @@ public final class MethodData {
     public static void fillStackTraceElements(StackTraceElement[] steArray, Object backtrace, int depth) {
         int[] sourceCodeIndexList = (int[]) backtrace;
         for (int i = 0; i < depth; i++) {
-            printFrame(sourceCodeIndexList[i]);
+            //printFrame(sourceCodeIndexList[i]);
             fillStackTraceElement(steArray[i], sourceCodeIndexList[i]);
         }
     }
