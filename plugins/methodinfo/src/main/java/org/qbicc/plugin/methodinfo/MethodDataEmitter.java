@@ -16,7 +16,6 @@ import org.qbicc.machine.object.ObjectFileProvider;
 import org.qbicc.object.Function;
 import org.qbicc.object.Section;
 import org.qbicc.plugin.linker.Linker;
-import org.qbicc.plugin.llvm.LLVMCallSiteInfo;
 import org.qbicc.plugin.serialization.BuildtimeHeap;
 import org.qbicc.type.ArrayType;
 import org.qbicc.type.CompoundType;
@@ -122,7 +121,7 @@ public class MethodDataEmitter implements Consumer<CompilationContext> {
 
     public MethodData createMethodData(CompilationContext ctxt) {
         List<StackMapRecord> stackMapRecords = new StackMapRecordCollector(ctxt).collect();
-        LLVMCallSiteInfo callSiteInfo = ctxt.getAttachment(LLVMCallSiteInfo.KEY);
+        CallSiteInfo callSiteInfo = ctxt.getAttachment(CallSiteInfo.KEY);
         MethodData methodData = new MethodData(stackMapRecords.size());
         Iterator<StackMapRecord> recordIterator = stackMapRecords.iterator();
         final int[] recordIndex = { 0 };
