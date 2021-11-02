@@ -69,6 +69,7 @@ public class MethodDataEmitter implements Consumer<CompilationContext> {
         String fileName = element.getSourceFileName();
         String className = element.getEnclosingType().getInternalName();
         String methodDesc = element.getDescriptor().toString();
+        int typeId = element.getEnclosingType().load().getTypeId();
 
         Vm vm = ctxt.getVm();
         BuildtimeHeap btHeap = BuildtimeHeap.get(ctxt);
@@ -84,7 +85,7 @@ public class MethodDataEmitter implements Consumer<CompilationContext> {
         SymbolLiteral mdLiteral = btHeap.getSerializedVmObject(vm.intern(methodDesc));
         Assert.assertNotNull(mdLiteral);
 
-        return methodData.add(new MethodInfo(fnLiteral, cnLiteral, mnLiteral, mdLiteral));
+        return methodData.add(new MethodInfo(fnLiteral, cnLiteral, mnLiteral, mdLiteral, typeId));
     }
 
     private int createSourceCodeInfo(CompilationContext ctxt, MethodData methodData, ExecutableElement element, int lineNumber, int bcIndex, int inlinedAtIndex) {

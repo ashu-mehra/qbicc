@@ -45,6 +45,7 @@ public class MethodDataTypes {
             .addNextMember("className", jlsRef)
             .addNextMember("methodName", jlsRef)
             .addNextMember("methodDesc", jlsRef)
+            .addNextMember("typeid", ts.getUnsignedInteger32Type())
             .build();
 
         sourceCodeInfoType = CompoundType.builder(ts)

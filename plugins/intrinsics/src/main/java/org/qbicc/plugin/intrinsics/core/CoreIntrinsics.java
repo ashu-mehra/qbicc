@@ -850,12 +850,24 @@ public final class CoreIntrinsics {
 
         intrinsics.registerIntrinsic(Phase.LOWER, mdDesc, "getMethodDesc", intToStringDesc, getMethodDesc);
 
+        StaticIntrinsic getTypeId = (builder, target, arguments) -> {
+            GlobalVariable gmdVariable = (GlobalVariable) builder.globalVariable(mdTypes.getAndRegisterGlobalMethodData(builder.getCurrentElement()));
+            Value tablePointer = builder.load(builder.memberOf(gmdVariable, gmdType.getMember("methodInfoTable")), MemoryAtomicityMode.UNORDERED);
+
+            ValueHandle minfoHandle = builder.elementOf(builder.pointerHandle(builder.bitCast(tablePointer, minfoType.getPointer())), arguments.get(0));
+            return builder.load(builder.memberOf(minfoHandle, minfoType.getMember("typeId")), MemoryAtomicityMode.UNORDERED);
+        };
+
+        intrinsics.registerIntrinsic(Phase.LOWER, mdDesc, "getTypeId", intToIntDesc, getTypeId);
+
         String methodDataClass = "org/qbicc/runtime/stackwalk/MethodData";
         MethodElement getLineNumberElement = ctxt.getRuntimeHelperMethod(methodDataClass, "getLineNumber");
         MethodElement getMethodInfoIndexElement = ctxt.getRuntimeHelperMethod(methodDataClass, "getMethodInfoIndex");
         MethodElement getFileNameElement = ctxt.getRuntimeHelperMethod(methodDataClass, "getFileName");
         MethodElement getClassNameElement = ctxt.getRuntimeHelperMethod(methodDataClass, "getClassName");
         MethodElement getMethodNameElement = ctxt.getRuntimeHelperMethod(methodDataClass, "getMethodName");
+        MethodElement getTypeIdElement = ctxt.getRuntimeHelperMethod(methodDataClass, "getTypeId");
+        MethodElement getClassFromTypeIdElement = ctxt.getRuntimeHelperMethod("org/qbicc/runtime/main/ObjectModel", "get_class_from_type_id");
 
         StaticIntrinsic fillStackTraceElement = (builder, target, arguments) -> {
             DefinedTypeDefinition jls = classContext.findDefinedType("java/lang/StackTraceElement");
@@ -878,17 +890,25 @@ public final class CoreIntrinsics {
             Value methodName = builder.getFirstBuilder().call(
                 builder.staticMethod(getMethodNameElement, getMethodNameElement.getDescriptor(), getMethodNameElement.getType()),
                 List.of(minfoIndex));
+            Value typeId = builder.getFirstBuilder().call(
+                builder.staticMethod(getTypeIdElement, getTypeIdElement.getDescriptor(), getTypeIdElement.getType()),
+                List.of(minfoIndex));
+            Value classObject = builder.getFirstBuilder().call(
+                builder.staticMethod(getClassFromTypeIdElement, getClassFromTypeIdElement.getDescriptor(), getClassFromTypeIdElement.getType()),
+                List.of(typeId, ctxt.getLiteralFactory().literalOf(0)));
 
             ValueHandle steRefHandle = builder.referenceHandle(arguments.get(0));
             FieldElement dcField = jlsVal.findField("declaringClass");
             FieldElement mnField = jlsVal.findField("methodName");
             FieldElement fnField = jlsVal.findField("fileName");
             FieldElement lnField = jlsVal.findField("lineNumber");
+            FieldElement classField = jlsVal.findField("declaringClassObject");
 
             builder.store(builder.instanceFieldOf(steRefHandle, dcField), className, MemoryAtomicityMode.NONE);
             builder.store(builder.instanceFieldOf(steRefHandle, mnField), methodName, MemoryAtomicityMode.NONE);
             builder.store(builder.instanceFieldOf(steRefHandle, fnField), fileName, MemoryAtomicityMode.NONE);
             builder.store(builder.instanceFieldOf(steRefHandle, lnField), lineNumber, MemoryAtomicityMode.NONE);
+            builder.store(builder.instanceFieldOf(steRefHandle, classField), classObject, MemoryAtomicityMode.NONE);
             return ctxt.getLiteralFactory().zeroInitializerLiteralOfType(ctxt.getTypeSystem().getVoidType()); // void literal
         };
 

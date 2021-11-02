@@ -9,12 +9,14 @@ final class MethodInfo {
     private SymbolLiteral classNameSymbolLiteral;
     private SymbolLiteral methodNameSymbolLiteral;
     private SymbolLiteral methodDescSymbolLiteral;
+    private int typeId;
 
-    MethodInfo(SymbolLiteral fileSymbolLiteral, SymbolLiteral classSymbolLiteral, SymbolLiteral methodSymbolLiteral, SymbolLiteral methodDescSymbolLiteral) {
+    MethodInfo(SymbolLiteral fileSymbolLiteral, SymbolLiteral classSymbolLiteral, SymbolLiteral methodSymbolLiteral, SymbolLiteral methodDescSymbolLiteral, int typeId) {
         this.fileNameSymbolLiteral = fileSymbolLiteral;
         this.classNameSymbolLiteral = classSymbolLiteral;
         this.methodNameSymbolLiteral = methodSymbolLiteral;
         this.methodDescSymbolLiteral = methodDescSymbolLiteral;
+        this.typeId = typeId;
     }
 
     public boolean equals(Object other) {
