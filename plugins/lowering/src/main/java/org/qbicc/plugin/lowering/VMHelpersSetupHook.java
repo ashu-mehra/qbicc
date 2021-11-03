@@ -1,6 +1,7 @@
 package org.qbicc.plugin.lowering;
 
 import org.qbicc.context.CompilationContext;
+import org.qbicc.plugin.coreclasses.RuntimeMethodFinder;
 import org.qbicc.type.definition.LoadedTypeDefinition;
 import org.qbicc.type.descriptor.BaseTypeDescriptor;
 import org.qbicc.type.descriptor.MethodDescriptor;
@@ -13,6 +14,7 @@ import java.util.function.Consumer;
  */
 public class VMHelpersSetupHook implements Consumer<CompilationContext> {
     public void accept(final CompilationContext ctxt) {
+        RuntimeMethodFinder methodFinder = RuntimeMethodFinder.get(ctxt);
         // Helpers for dynamic type checking
         ctxt.enqueue(ctxt.getVMHelperMethod("arrayStoreCheck"));
         ctxt.enqueue(ctxt.getVMHelperMethod("checkcast_class"));
@@ -49,12 +51,12 @@ public class VMHelpersSetupHook implements Consumer<CompilationContext> {
         ctxt.enqueue(ctxt.getVMHelperMethod("threadWrapper"));
 
         // Helpers for stack walk
-        ctxt.enqueue(ctxt.getRuntimeHelperMethod("org/qbicc/runtime/stackwalk/MethodData", "fillStackTraceElements"));
-        ctxt.enqueue(ctxt.getRuntimeHelperMethod("org/qbicc/runtime/stackwalk/JavaStackWalker", "getFrameCount"));
-        ctxt.enqueue(ctxt.getRuntimeHelperMethod("org/qbicc/runtime/stackwalk/JavaStackWalker", "walkStack"));
-        ctxt.enqueue(ctxt.getRuntimeHelperMethod("org/qbicc/runtime/stackwalk/JavaStackFrameCache", "getSourceCodeIndexList"));
-        ctxt.enqueue(ctxt.getRuntimeHelperMethod("org/qbicc/runtime/stackwalk/JavaStackFrameCache", "visitFrame"));
-        ctxt.enqueue(ctxt.getRuntimeClassConstructor("org/qbicc/runtime/stackwalk/JavaStackFrameCache",
+        ctxt.enqueue(methodFinder.getMethod("org/qbicc/runtime/stackwalk/MethodData", "fillStackTraceElements"));
+        ctxt.enqueue(methodFinder.getMethod("org/qbicc/runtime/stackwalk/JavaStackWalker", "getFrameCount"));
+        ctxt.enqueue(methodFinder.getMethod("org/qbicc/runtime/stackwalk/JavaStackWalker", "walkStack"));
+        ctxt.enqueue(methodFinder.getMethod("org/qbicc/runtime/stackwalk/JavaStackFrameCache", "getSourceCodeIndexList"));
+        ctxt.enqueue(methodFinder.getMethod("org/qbicc/runtime/stackwalk/JavaStackFrameCache", "visitFrame"));
+        ctxt.enqueue(methodFinder.getConstructor("org/qbicc/runtime/stackwalk/JavaStackFrameCache",
             MethodDescriptor.synthesize(ctxt.getBootstrapClassContext(), BaseTypeDescriptor.V, List.of(BaseTypeDescriptor.I))));
     }
 }

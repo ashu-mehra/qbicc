@@ -265,41 +265,35 @@ final class CompilationContextImpl implements CompilationContext {
         return classLoaderContexts.computeIfAbsent(classLoaderObject, classLoader -> new ClassContextImpl(this, classLoader, vm::loadClass));
     }
 
-    public MethodElement getRuntimeHelperMethod(String runtimeClass, String helperName) {
-        DefinedTypeDefinition dtd = bootstrapClassContext.findDefinedType(runtimeClass);
+    public MethodElement getVMHelperMethod(String name) {
+        DefinedTypeDefinition dtd = bootstrapClassContext.findDefinedType("org/qbicc/runtime/main/VMHelpers");
         if (dtd == null) {
-            error("Can't find runtime library class: " + runtimeClass);
+            error("Can't find runtime library class: " + "org/qbicc/runtime/main/VMHelpers");
             return null;
         }
         LoadedTypeDefinition helpers = dtd.load();
-        int idx = helpers.findMethodIndex(e -> helperName.equals(e.getName()));
+        int idx = helpers.findMethodIndex(e -> name.equals(e.getName()));
         if (idx == -1) {
-            error("Can't find the runtime helper method %s", helperName);
+            error("Can't find the runtime helper method %s", name);
             return null;
         }
         return helpers.getMethod(idx);
     }
 
-    public MethodElement getVMHelperMethod(String name) {
-        return getRuntimeHelperMethod("org/qbicc/runtime/main/VMHelpers", name);
-    }
-
     public MethodElement getOMHelperMethod(String name) {
-        return getRuntimeHelperMethod("org/qbicc/runtime/main/ObjectModel", name);
-    }
-
-    public ConstructorElement getRuntimeClassConstructor(String runtimeClass, MethodDescriptor descriptor) {
-        DefinedTypeDefinition dtd = bootstrapClassContext.findDefinedType(runtimeClass);
+        DefinedTypeDefinition dtd = bootstrapClassContext.findDefinedType("org/qbicc/runtime/main/ObjectModel");
         if (dtd == null) {
-            error("Can't find runtime library class: " + runtimeClass);
+            error("Can't find runtime library class: " + "org/qbicc/runtime/main/ObjectModel");
             return null;
         }
         LoadedTypeDefinition helpers = dtd.load();
-        int idx = helpers.findConstructorIndex(descriptor);
+        int idx = helpers.findMethodIndex(e -> name.equals(e.getName()));
         if (idx == -1) {
-            error("Can't find the constructor having descriptor %s for class %s", descriptor.toString(), runtimeClass);
+            error("Can't find the runtime helper method %s", name);
+            return null;
         }
-        return helpers.getConstructor(idx);
+        return helpers.getMethod(idx);
+
     }
 
     public void enqueue(final ExecutableElement element) {

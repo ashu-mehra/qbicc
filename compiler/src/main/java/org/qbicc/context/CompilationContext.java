@@ -54,14 +54,9 @@ public interface CompilationContext extends DiagnosticContext {
 
     ClassContext constructClassContext(VmClassLoader classLoaderObject);
 
-    /* TODO: Add method descriptor as a parameter */
-    MethodElement getRuntimeHelperMethod(String runtimeClass, String helperName);
-
     MethodElement getVMHelperMethod(String helperName);
 
     MethodElement getOMHelperMethod(String helperName);
-
-    ConstructorElement getRuntimeClassConstructor(String runtimeClass, MethodDescriptor descriptor);
 
     void enqueue(ExecutableElement element);
 

@@ -45,6 +45,7 @@ import org.qbicc.interpreter.VmObject;
 import org.qbicc.interpreter.VmString;
 import org.qbicc.machine.probe.CProbe;
 import org.qbicc.plugin.coreclasses.CoreClasses;
+import org.qbicc.plugin.coreclasses.RuntimeMethodFinder;
 import org.qbicc.plugin.instanceofcheckcast.SupersDisplayTables;
 import org.qbicc.plugin.intrinsics.InstanceIntrinsic;
 import org.qbicc.plugin.intrinsics.Intrinsics;
@@ -659,20 +660,20 @@ public final class CoreIntrinsics {
     public static void registerJavaLangThrowableIntrinsics(CompilationContext ctxt) {
         Intrinsics intrinsics = Intrinsics.get(ctxt);
         ClassContext classContext = ctxt.getBootstrapClassContext();
+        RuntimeMethodFinder methodFinder = RuntimeMethodFinder.get(ctxt);
 
         String jsfcClass = "org/qbicc/runtime/stackwalk/JavaStackFrameCache";
         String jswClass = "org/qbicc/runtime/stackwalk/JavaStackWalker";
 
         ClassTypeDescriptor jltDesc = ClassTypeDescriptor.synthesize(classContext, "java/lang/Throwable");
-        ClassTypeDescriptor jsfcDesc = ClassTypeDescriptor.synthesize(classContext, jsfcClass);
 
         MethodDescriptor intToVoidDesc = MethodDescriptor.synthesize(classContext, BaseTypeDescriptor.V, List.of(BaseTypeDescriptor.I));
 
-        MethodElement getFrameCountElement = ctxt.getRuntimeHelperMethod(jswClass, "getFrameCount");
-        MethodElement walkStackElement = ctxt.getRuntimeHelperMethod(jswClass, "walkStack");
+        MethodElement getFrameCountElement = methodFinder.getMethod(jswClass, "getFrameCount");
+        MethodElement walkStackElement = methodFinder.getMethod(jswClass, "walkStack");
 
-        MethodElement getSourceCodeIndexListElement = ctxt.getRuntimeHelperMethod(jsfcClass, "getSourceCodeIndexList");
-        ConstructorElement jsfcConstructor = ctxt.getRuntimeClassConstructor(jsfcClass, intToVoidDesc);
+        MethodElement getSourceCodeIndexListElement = methodFinder.getMethod(jsfcClass, "getSourceCodeIndexList");
+        ConstructorElement jsfcConstructor = methodFinder.getConstructor(jsfcClass, intToVoidDesc);
 
         InstanceIntrinsic fillInStackTrace = (builder, instance, target, arguments) -> {
             Value frameCount = builder.getFirstBuilder().call(
@@ -706,13 +707,14 @@ public final class CoreIntrinsics {
     public static void registerJavaLangStackTraceElementInstrinsics(CompilationContext ctxt) {
         Intrinsics intrinsics = Intrinsics.get(ctxt);
         ClassContext classContext = ctxt.getBootstrapClassContext();
+        RuntimeMethodFinder methodFinder = RuntimeMethodFinder.get(ctxt);
 
         ClassTypeDescriptor steDesc = ClassTypeDescriptor.synthesize(classContext, "java/lang/StackTraceElement");
         ClassTypeDescriptor jltDesc = ClassTypeDescriptor.synthesize(classContext, "java/lang/Throwable");
         ArrayTypeDescriptor steArrayDesc = ArrayTypeDescriptor.of(classContext, steDesc);
         MethodDescriptor steArrayThrowableToVoidDesc = MethodDescriptor.synthesize(classContext, BaseTypeDescriptor.V, List.of(steArrayDesc, jltDesc));
 
-        MethodElement fillStackTraceElements = ctxt.getRuntimeHelperMethod("org/qbicc/runtime/stackwalk/MethodData", "fillStackTraceElements");
+        MethodElement fillStackTraceElements = methodFinder.getMethod("org/qbicc/runtime/stackwalk/MethodData", "fillStackTraceElements");
 
         StaticIntrinsic initStackTraceElements = (builder, target, arguments) -> {
             DefinedTypeDefinition jlt = classContext.findDefinedType("java/lang/Throwable");
@@ -731,6 +733,7 @@ public final class CoreIntrinsics {
     private static void registerOrgQbiccRuntimeMethodDataIntrinsics(final CompilationContext ctxt) {
         Intrinsics intrinsics = Intrinsics.get(ctxt);
         ClassContext classContext = ctxt.getBootstrapClassContext();
+        RuntimeMethodFinder methodFinder = RuntimeMethodFinder.get(ctxt);
 
         ClassTypeDescriptor stringDesc = ClassTypeDescriptor.synthesize(classContext, "java/lang/String");
         ClassTypeDescriptor mdDesc = ClassTypeDescriptor.synthesize(classContext, "org/qbicc/runtime/stackwalk/MethodData");
@@ -861,13 +864,13 @@ public final class CoreIntrinsics {
         intrinsics.registerIntrinsic(Phase.LOWER, mdDesc, "getTypeId", intToIntDesc, getTypeId);
 
         String methodDataClass = "org/qbicc/runtime/stackwalk/MethodData";
-        MethodElement getLineNumberElement = ctxt.getRuntimeHelperMethod(methodDataClass, "getLineNumber");
-        MethodElement getMethodInfoIndexElement = ctxt.getRuntimeHelperMethod(methodDataClass, "getMethodInfoIndex");
-        MethodElement getFileNameElement = ctxt.getRuntimeHelperMethod(methodDataClass, "getFileName");
-        MethodElement getClassNameElement = ctxt.getRuntimeHelperMethod(methodDataClass, "getClassName");
-        MethodElement getMethodNameElement = ctxt.getRuntimeHelperMethod(methodDataClass, "getMethodName");
-        MethodElement getTypeIdElement = ctxt.getRuntimeHelperMethod(methodDataClass, "getTypeId");
-        MethodElement getClassFromTypeIdElement = ctxt.getRuntimeHelperMethod("org/qbicc/runtime/main/ObjectModel", "get_class_from_type_id");
+        MethodElement getLineNumberElement = methodFinder.getMethod(methodDataClass, "getLineNumber");
+        MethodElement getMethodInfoIndexElement = methodFinder.getMethod(methodDataClass, "getMethodInfoIndex");
+        MethodElement getFileNameElement = methodFinder.getMethod(methodDataClass, "getFileName");
+        MethodElement getClassNameElement = methodFinder.getMethod(methodDataClass, "getClassName");
+        MethodElement getMethodNameElement = methodFinder.getMethod(methodDataClass, "getMethodName");
+        MethodElement getTypeIdElement = methodFinder.getMethod(methodDataClass, "getTypeId");
+        MethodElement getClassFromTypeIdElement = methodFinder.getMethod("org/qbicc/runtime/main/ObjectModel", "get_class_from_type_id");
 
         StaticIntrinsic fillStackTraceElement = (builder, target, arguments) -> {
             DefinedTypeDefinition jls = classContext.findDefinedType("java/lang/StackTraceElement");
